@@ -1,8 +1,18 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+// import { io } from "socket.io-client"
 import { MessageCircle, CalendarCheck, Globe, Activity } from "lucide-react";
 
 export default function LandingPage() {
+
+  // const socket = io("https://fringilline-celsa-unreasoned.ngrok-free.dev", {
+  //   transports: ["websocket"],
+  // });
+
+  // socket.on("new_message", (data) => {
+  //   console.log("📩 Live Message:", data);
+  // });
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navbar */}

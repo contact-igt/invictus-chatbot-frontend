@@ -1,13 +1,68 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Link as LinkIcon, UploadCloud, Trash2, Globe, CheckCircle, Clock } from "lucide-react";
+import { useUploadFilesMutation } from "@/hooks/useUploadFiles";
 
 export default function KnowledgeBasePage() {
+    const fileRef = useRef<HTMLInputElement>(null);
     const [activeTab, setActiveTab] = useState("sources");
+    const [isDragging, setIsDragging] = useState(false);
+    const { mutate: uploadFileMutate, isPending } = useUploadFilesMutation();
+
+    const processFiles = (files: FileList | null) => {
+        if (!files || files.length === 0) return;
+
+        const allowedTypes = [
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/plain",
+        ];
+
+        const validFiles: File[] = [];
+
+        Array.from(files).forEach((file) => {
+            if (!allowedTypes.includes(file.type)) {
+                alert(`File not allowed: ${file.name}`);
+                return;
+            }
+
+            validFiles.push(file);
+        });
+
+        if (validFiles.length === 0) return;
+
+        uploadFileMutate(validFiles);
+    };
+
+    const handleUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+        processFiles(e.target.files);
+        e.target.value = "";
+    };
+
+    const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+    };
+
+    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setIsDragging(false);
+        processFiles(e.dataTransfer.files);
+    };
 
     return (
         <div className="space-y-8">
@@ -25,16 +80,68 @@ export default function KnowledgeBasePage() {
                 <TabsContent value="sources" className="space-y-6 mt-6">
                     {/* Add New Source Section */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Card className="border-dashed border-2 bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                            <CardContent className="flex flex-col items-center justify-center py-10 text-center cursor-pointer">
-                                <div className="w-12 h-12 bg-blue-100 text-primary rounded-full flex items-center justify-center mb-4">
-                                    <UploadCloud className="w-6 h-6" />
+                        <Card
+                            className={`relative border-2 transition-all duration-300 overflow-hidden ${isDragging
+                                ? 'border-blue-500 bg-blue-50/80 shadow-lg scale-[1.02]'
+                                : 'border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-blue-50/30 hover:border-blue-400 hover:shadow-md'
+                                }`}
+                            onDragEnter={handleDragEnter}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                        >
+                            {/* Animated background gradient on drag */}
+                            {isDragging && (
+                                <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-indigo-100 opacity-50 animate-pulse" />
+                            )}
+
+                            <CardContent className="relative flex flex-col items-center justify-center py-12 text-center cursor-pointer">
+                                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-all duration-300 ${isDragging
+                                    ? 'bg-blue-500 text-white scale-110 shadow-lg'
+                                    : 'bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-600'
+                                    }`}>
+                                    <UploadCloud className={`transition-all duration-300 ${isDragging ? 'w-8 h-8' : 'w-7 h-7'}`} />
                                 </div>
-                                <h3 className="font-semibold text-lg text-slate-900">Upload Documents</h3>
-                                <p className="text-sm text-slate-500 max-w-xs mt-1 mb-4">
-                                    Drag & drop PDFs, DOCX, or TXT files here to train the AI on hospital policies.
+
+                                <h3 className="font-bold text-xl text-slate-900 mb-2">
+                                    {isDragging ? 'Drop files here' : 'Upload Documents'}
+                                </h3>
+
+                                <p className="text-sm text-slate-600 max-w-xs mb-6 leading-relaxed">
+                                    {isDragging
+                                        ? 'Release to upload your files'
+                                        : 'Drag & drop your files here or click below to browse'
+                                    }
                                 </p>
-                                <Button variant="outline" size="sm">Select Files</Button>
+
+                                {!isDragging && (
+                                    <>
+                                        <Input
+                                            ref={fileRef}
+                                            id="file-upload"
+                                            type="file"
+                                            multiple
+                                            accept=".pdf,.doc,.docx,.txt"
+                                            onChange={handleUploadFile}
+                                            className="hidden"
+                                        />
+
+                                        <Button
+                                            variant="default"
+                                            size="lg"
+                                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all duration-300"
+                                            onClick={() => fileRef.current?.click()}
+                                            disabled={isPending}
+                                        >
+                                            <UploadCloud className="w-4 h-4 mr-2" />
+                                            <span>{isPending ? 'Uploading...' : 'Click here to select files'}</span>
+                                        </Button>
+
+                                        <p className="text-xs text-slate-400 mt-4">
+                                            Supported formats: PDF, DOCX, DOC, TXT
+                                        </p>
+                                    </>
+                                )}
                             </CardContent>
                         </Card>
 

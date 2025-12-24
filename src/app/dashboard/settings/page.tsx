@@ -28,7 +28,6 @@ export default function SettingsPage() {
                     <TabsTrigger value="security" className="gap-2"><ShieldCheck className="w-4 h-4" /> Admin</TabsTrigger>
                 </TabsList>
 
-                {/* 1. Hospital Profile Settings */}
                 <TabsContent value="profile">
                     <Card>
                         <CardHeader>
@@ -62,8 +61,6 @@ export default function SettingsPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-
-                {/* 2. WhatsApp Integration Settings */}
                 <TabsContent value="whatsapp">
                     <Card>
                         <CardHeader>
@@ -283,11 +280,10 @@ export default function SettingsPage() {
                                     <Switch />
                                 </div>
                             </div>
-                            <Button className="w-full mt-4" variant="destructive">Save Security Settings</Button>
+                            <Button className="w-full mt-4" variant="default">Save Security Settings</Button>
                         </CardContent>
                     </Card>
                 </TabsContent>
-
             </Tabs>
         </div>
     );

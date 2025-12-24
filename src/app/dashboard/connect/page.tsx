@@ -1,13 +1,42 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+// TypeScript declarations for Facebook SDK
+declare global {
+    interface Window {
+        FB: {
+            init: (params: {
+                appId: string;
+                xfbml: boolean;
+                version: string;
+            }) => void;
+            login: (
+                callback: (response: {
+                    authResponse?: {
+                        code: string;
+                        accessToken?: string;
+                    };
+                    status?: string;
+                }) => void,
+                options: {
+                    config_id: string;
+                    response_type: string;
+                    override_default_response_type: boolean;
+                    scope: string;
+                }
+            ) => void;
+        };
+        fbAsyncInit: () => void;
+    }
+}
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-    CheckCircle2, 
-    Smartphone, 
-    ArrowLeft, 
+import {
+    CheckCircle2,
+    Smartphone,
+    ArrowLeft,
     Phone,
     Shield,
     Loader2
@@ -28,12 +57,44 @@ export default function ConnectWhatsApp() {
     const [currentStep, setCurrentStep] = useState<WizardStep>("initial");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+    const [sdkLoaded, setSdkLoaded] = useState(false);
     const [connectionData, setConnectionData] = useState<ConnectionData>({
         phoneNumber: "",
         countryCode: "+91",
         verificationMethod: "SMS",
         otp: "",
     });
+
+    // Load Facebook SDK on client side only
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        // Check if SDK is already loaded
+        if (window.FB) {
+            setSdkLoaded(true);
+            return;
+        }
+
+        // Define the async init function
+        window.fbAsyncInit = function () {
+            window.FB.init({
+                appId: process.env.NEXT_PUBLIC_META_APP_ID || "",
+                xfbml: false,
+                version: "v19.0",
+            });
+            setSdkLoaded(true);
+        };
+
+        // Load the SDK script
+        if (!document.getElementById("facebook-jssdk")) {
+            const script = document.createElement("script");
+            script.id = "facebook-jssdk";
+            script.src = "https://connect.facebook.net/en_US/sdk.js";
+            script.async = true;
+            script.defer = true;
+            document.body.appendChild(script);
+        }
+    }, []);
 
     const handleStartConnection = () => {
         setCurrentStep("phone-input");
@@ -42,7 +103,7 @@ export default function ConnectWhatsApp() {
 
     const handleSendOTP = async () => {
         setError("");
-        
+
         // Validate phone number
         if (!connectionData.phoneNumber || connectionData.phoneNumber.length < 10) {
             setError("Please enter a valid phone number");
@@ -50,7 +111,7 @@ export default function ConnectWhatsApp() {
         }
 
         setIsLoading(true);
-        
+
         try {
             const response = await fetch('/api/whatsapp/send-otp', {
                 method: 'POST',
@@ -60,9 +121,9 @@ export default function ConnectWhatsApp() {
                     method: connectionData.verificationMethod
                 })
             });
-            
+
             await new Promise(resolve => setTimeout(resolve, 1500));
-            
+
             setCurrentStep("otp-verify");
         } catch (err) {
             setError("Failed to send OTP. Please try again.");
@@ -73,7 +134,7 @@ export default function ConnectWhatsApp() {
 
     const handleVerifyOTP = async () => {
         setError("");
-        
+
         // Validate OTP
         if (!connectionData.otp || connectionData.otp.length !== 6) {
             setError("Please enter a valid 6-digit OTP");
@@ -81,7 +142,7 @@ export default function ConnectWhatsApp() {
         }
 
         setIsLoading(true);
-        
+
         try {
             const response = await fetch('/api/whatsapp/verify-otp', {
                 method: 'POST',
@@ -93,7 +154,7 @@ export default function ConnectWhatsApp() {
             });
 
             await new Promise(resolve => setTimeout(resolve, 1500));
-            
+
             setCurrentStep("success");
         } catch (err) {
             setError("Invalid OTP. Please try again.");
@@ -118,6 +179,76 @@ export default function ConnectWhatsApp() {
             case "success": return 3;
             default: return 0;
         }
+    };
+
+    const connectWhatsApp = () => {
+        // Check if FB SDK is loaded
+        if (!sdkLoaded || typeof window.FB === 'undefined') {
+            setError("Facebook SDK is still loading. Please wait a moment and try again.");
+            return;
+        }
+
+        const configId = process.env.NEXT_PUBLIC_EMBEDDED_SIGNUP_CONFIG_ID;
+
+        if (!configId) {
+            console.error("Missing NEXT_PUBLIC_EMBEDDED_SIGNUP_CONFIG_ID");
+            setError("Meta configuration missing. Contact support.");
+            return;
+        }
+
+        setIsLoading(true);
+        setError("");
+
+        window.FB.login(
+            function (response: any) {
+                setIsLoading(false);
+
+                if (!response.authResponse) {
+                    console.log("User cancelled signup");
+                    setError("WhatsApp connection was cancelled. Please try again.");
+                    return;
+                }
+
+                // IMPORTANT:
+                // Do NOT store this token
+                // Only used by Meta to finish embedded signup
+                const code = response.authResponse.code;
+
+                // Send code to backend
+                fetch("/api/meta/embedded-signup/callback", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        code,
+                    }),
+                })
+                    .then((res) => res.json())
+                    .then((data) => {
+                        if (data.success) {
+                            setCurrentStep("success");
+                            // Optionally update connection data with returned info
+                            if (data.phoneNumber) {
+                                setConnectionData({
+                                    ...connectionData,
+                                    phoneNumber: data.phoneNumber,
+                                });
+                            }
+                        } else {
+                            setError(data.error || "Failed to connect WhatsApp. Please try again.");
+                        }
+                    })
+                    .catch((err) => {
+                        console.error("Error connecting WhatsApp:", err);
+                        setError("Failed to connect WhatsApp. Please try again.");
+                    });
+            },
+            {
+                config_id: configId,
+                response_type: "code",
+                override_default_response_type: true,
+                scope: "whatsapp_business_management,whatsapp_business_messaging",
+            }
+        );
     };
 
     return (
@@ -167,13 +298,14 @@ export default function ConnectWhatsApp() {
                             <p className="text-slate-500 max-w-md mb-8">
                                 Connect your WhatsApp Business number using OTP verification. No Facebook login required.
                             </p>
-                            <Button 
-                                size="lg" 
+                            <Button
+                                size="lg"
                                 className="bg-[#25D366] hover:bg-[#20bd5a] text-white px-8 py-6 text-lg shadow-lg hover:shadow-xl transition-all"
-                                onClick={handleStartConnection}
+                                onClick={connectWhatsApp}
+                                disabled={!sdkLoaded || isLoading}
                             >
                                 <Phone className="w-5 h-5 mr-2" />
-                                Connect WhatsApp Number
+                                {!sdkLoaded ? "Loading..." : "Connect WhatsApp Number"}
                             </Button>
                         </div>
                     )}
@@ -189,7 +321,7 @@ export default function ConnectWhatsApp() {
                                 <ArrowLeft className="w-4 h-4 mr-2" />
                                 Back
                             </Button>
-                            
+
                             <div className="text-center mb-8">
                                 <div className="w-16 h-16 bg-gradient-to-br from-green-50 to-green-100 text-[#25D366] rounded-full flex items-center justify-center mb-4 mx-auto">
                                     <Phone className="w-8 h-8" />
@@ -302,7 +434,7 @@ export default function ConnectWhatsApp() {
                                 <ArrowLeft className="w-4 h-4 mr-2" />
                                 Back
                             </Button>
-                            
+
                             <div className="text-center mb-8">
                                 <div className="w-16 h-16 bg-gradient-to-br from-purple-50 to-purple-100 text-purple-600 rounded-full flex items-center justify-center mb-4 mx-auto">
                                     <Shield className="w-8 h-8" />
