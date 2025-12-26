@@ -68,7 +68,7 @@ export default function KnowledgeBasePage() {
         <div className="space-y-8">
             <div>
                 <h1 className="text-3xl font-bold text-slate-900">Knowledge Base</h1>
-                <p className="text-slate-500">Train your AI assistant with your hospital's documents and website data.</p>
+                <p className="text-base text-slate-500 mt-1">Train your AI assistant with your hospital's documents and website data.</p>
             </div>
 
             <Tabs defaultValue="sources" className="w-full">
@@ -107,7 +107,7 @@ export default function KnowledgeBasePage() {
                                     {isDragging ? 'Drop files here' : 'Upload Documents'}
                                 </h3>
 
-                                <p className="text-sm text-slate-600 max-w-xs mb-6 leading-relaxed">
+                                <p className="text-base text-slate-600 max-w-xs mb-6 leading-relaxed">
                                     {isDragging
                                         ? 'Release to upload your files'
                                         : 'Drag & drop your files here or click below to browse'
@@ -134,7 +134,7 @@ export default function KnowledgeBasePage() {
                                             disabled={isPending}
                                         >
                                             <UploadCloud className="w-4 h-4 mr-2" />
-                                            <span>{isPending ? 'Uploading...' : 'Click here to select files'}</span>
+                                            <span className="text-base">{isPending ? 'Uploading...' : 'Click here to select files'}</span>
                                         </Button>
 
                                         <p className="text-xs text-slate-400 mt-4">
@@ -147,8 +147,8 @@ export default function KnowledgeBasePage() {
 
                         <Card className="bg-white">
                             <CardHeader>
-                                <CardTitle className="text-lg">Add Website URL</CardTitle>
-                                <CardDescription>Crawl your website for information.</CardDescription>
+                                <CardTitle className="text-xl">Add Website URL</CardTitle>
+                                <CardDescription className="text-base">Crawl your website for information.</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="flex gap-2">
@@ -168,8 +168,8 @@ export default function KnowledgeBasePage() {
                     {/* Active Sources List */}
                     <Card>
                         <CardHeader>
-                            <CardTitle>Active Sources</CardTitle>
-                            <CardDescription>Content currently finding the AI's responses.</CardDescription>
+                            <CardTitle className="text-xl">Active Sources</CardTitle>
+                            <CardDescription className="text-base">Content currently finding the AI's responses.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
@@ -184,8 +184,8 @@ export default function KnowledgeBasePage() {
                                                 {item.type === 'file' ? <FileText className="w-5 h-5" /> : <LinkIcon className="w-5 h-5" />}
                                             </div>
                                             <div>
-                                                <p className="font-medium text-slate-900">{item.name}</p>
-                                                <p className="text-xs text-slate-500">{item.size} • {item.date}</p>
+                                                <p className="font-medium text-base text-slate-900">{item.name}</p>
+                                                <p className="text-sm text-slate-500">{item.size} • {item.date}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-4">
