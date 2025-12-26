@@ -63,6 +63,7 @@ export default function MessagesPage() {
     };
 
     const groupMessagesByDate = (messages: any[] = []) => {
+        console.log(messages)
         return messages?.reduce((groups: any, msg: any) => {
             const label = getDateLabel(msg.created_at || msg.timestamp);
 
@@ -95,7 +96,7 @@ export default function MessagesPage() {
         }
     }, [chatList, selectedChat]);
 
-    const groupedMessages = groupMessagesByDate(messagesData);
+    const groupedMessages = groupMessagesByDate(messagesData?.data);
     const groupedEntries = Object.entries(groupedMessages).reverse();
     return (
         <div className="flex h-[calc(100vh-8rem)] bg-white border rounded-xl overflow-hidden shadow-sm">

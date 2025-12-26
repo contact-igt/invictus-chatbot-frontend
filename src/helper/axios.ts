@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
-import { store } from '../redux/store';
-import type { RootState } from '../redux/store';
-import { clearAuthData } from '@/redux/slices/auth/authSlice';
+import axios from "axios";
+import { jwtDecode } from "jwt-decode";
+import { store } from "../redux/store";
+import type { RootState } from "../redux/store";
+import { clearAuthData } from "@/redux/slices/auth/authSlice";
 
 interface JwtPayload {
   exp: number;
@@ -15,22 +15,21 @@ export const _axios = async (
   whatsapp?: boolean,
   url?: string,
   body?: any,
-  contentType: string = 'application/json',
-  params?: any,
+  contentType: string = "application/json",
+  params?: any
 ) => {
-
   const env = process.env.NEXT_PUBLIC_ENV;
-  const APIURL = whatsapp ? 
-    process.env.NEXT_PUBLIC_NGROK_URL :
-    env === 'production'
-      ? process.env.NEXT_PUBLIC_PRODUCTION_API_URL
-      : env === 'development'
-        ? process.env.NEXT_PUBLIC_DEVELOPMENT_API_URL
-        : process.env.NEXT_PUBLIC_LOCALHOST_API_URL;
+  const APIURL = whatsapp
+    ? process.env.NEXT_PUBLIC_NGROK_URL
+    : env === "production"
+    ? process.env.NEXT_PUBLIC_PRODUCTION_API_URL
+    : env === "development"
+    ? process.env.NEXT_PUBLIC_DEVELOPMENT_API_URL
+    : process.env.NEXT_PUBLIC_LOCALHOST_API_URL;
 
   const endpoint = `${APIURL}${url}`;
   const state: RootState = store.getState();
-  const token = whatsapp? process.env.META_ACCESS_TOKEN : state.auth.token;
+  const token = whatsapp ? process.env.META_ACCESS_TOKEN : state.auth.token;
 
   if (token) {
     try {
@@ -38,12 +37,12 @@ export const _axios = async (
       const currentTime = Math.floor(Date.now() / 1000);
 
       if (decoded.exp < currentTime) {
-        console.warn('Token is expired');
+        console.warn("Token is expired");
         store.dispatch(clearAuthData());
-        throw new Error('Token expired');
+        throw new Error("Token expired");
       }
     } catch (e) {
-      console.error('Invalid token:', e);
+      console.error("Invalid token:", e);
       store.dispatch(clearAuthData());
       throw e;
     }
@@ -54,9 +53,9 @@ export const _axios = async (
   try {
     const res = await axios({
       headers: {
-        ...(isFormData ? {} : { 'Content-Type': contentType }),
+        ...(isFormData ? {} : { "Content-Type": contentType }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-              "ngrok-skip-browser-warning": true,
+        "ngrok-skip-browser-warning": true,
       },
       method: method,
       url: endpoint,
@@ -65,7 +64,7 @@ export const _axios = async (
     });
     return res.data;
   } catch (err) {
-    console.error('Axios error:', err);
+    console.error("Axios error:", err);
     throw err;
   }
 };
