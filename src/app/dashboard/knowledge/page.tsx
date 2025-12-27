@@ -1,18 +1,126 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Link as LinkIcon, UploadCloud, Trash2, Globe, CheckCircle, Clock } from "lucide-react";
-import { useUploadFilesMutation } from "@/hooks/useUploadFiles";
+import { FileText, Link as LinkIcon, UploadCloud, Trash2, Globe, CheckCircle, Clock, Pencil, Eye, MoreHorizontal } from "lucide-react";
+import { useSnackbar } from "notistack";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useGetKnowledgesQuery, useUploadKnowledgeMutation, useUpdateKnowledgeMutation, useDeleteKnowledgeById, useKnowledgeByIdQuery } from "@/hooks/useUploadKnowledge";
+
+const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+
+    return date.toLocaleDateString("en-IN", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    });
+};
+
+const formatDisplayKnowledge = (type: string, data: any): string => {
+    switch (type) {
+        case "text":
+            return data?.text
+                ? data.text.length > 120
+                    ? `${data.text.slice(0, 120)}...`
+                    : data.text
+                : "Text content";
+
+        case "url":
+            return data?.source_url || "Website URL";
+
+        case "file":
+            return data?.file_name || data?.file_url || "Uploaded file";
+
+        default:
+            return "Unknown knowledge source";
+    }
+};
 
 export default function KnowledgeBasePage() {
+    const { enqueueSnackbar } = useSnackbar();
     const fileRef = useRef<HTMLInputElement>(null);
     const [activeTab, setActiveTab] = useState("sources");
+    const { data: knowledgeData, isLoading: isKnowledgeLoading, isError } = useGetKnowledgesQuery();
     const [isDragging, setIsDragging] = useState(false);
-    const { mutate: uploadFileMutate, isPending } = useUploadFilesMutation();
+    const { mutate: uploadKnowledgeMutate, isPending } = useUploadKnowledgeMutation();
+    const [uploadedData, setUploadedData] = useState<Array<{ name: string, size: string, date: string, type: string, fileObj?: File }>>([]);
+    const [websiteUrl, setWebsiteUrl] = useState("");
+    const [textContent, setTextContent] = useState("");
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [selectedItem, setSelectedItem] = useState<any>(null);
+    const [viewMode, setViewMode] = useState<'view' | 'edit'>('view');
+    const [editContent, setEditContent] = useState("");
+    const { data: knowledgeDetailsById, isLoading: isKnowledgeByIdLoading } = useKnowledgeByIdQuery(selectedItem?.id);
 
+    const { mutate: updateKnowledgeMutate } = useUpdateKnowledgeMutation();
+    console.log("knowledgeDetailsById", knowledgeDetailsById)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<any>(null);
+
+    const { mutate: deleteKnowledgeMutate } = useDeleteKnowledgeById();
+
+    const handleView = (item: any) => {
+        setSelectedItem(item);
+        setViewMode('view');
+        setIsViewModalOpen(true);
+    };
+
+    const handleEdit = (item: any) => {
+        setSelectedItem(item);
+        setViewMode('edit');
+        setIsViewModalOpen(true);
+    };
+
+    const handleUpdateKnowledge = () => {
+        if (!selectedItem) return;
+        const payload: {
+            title: string;
+            text?: string;
+        } = {
+            title: "Ophthall conclave conference",
+            text: editContent
+        }
+        updateKnowledgeMutate({
+            id: selectedItem.id,
+            data: payload
+        });
+        setIsViewModalOpen(false);
+    };
+
+    const handleDeleteClick = (item: any) => {
+        setItemToDelete(item);
+        setIsDeleteModalOpen(true);
+    };
+
+    const handleConfirmDelete = () => {
+        if (itemToDelete) {
+            deleteKnowledgeMutate(itemToDelete.id);
+            setIsDeleteModalOpen(false);
+            setItemToDelete(null);
+        }
+    };
+    console.log("knowledgeData", knowledgeData)
     const processFiles = (files: FileList | null) => {
         if (!files || files.length === 0) return;
 
@@ -35,8 +143,17 @@ export default function KnowledgeBasePage() {
         });
 
         if (validFiles.length === 0) return;
+        console.log(validFiles)
+        // Add files to uploaded files list
+        const newFiles = validFiles.map(file => ({
+            name: file.name,
+            size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+            date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+            type: file.type.includes("pdf") ? "pdf" : file.type.includes("word") ? "doc" : "txt",
+            fileObj: file
+        }));
 
-        uploadFileMutate(validFiles);
+        setUploadedData(prev => [...newFiles, ...prev]);
     };
 
     const handleUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,6 +181,62 @@ export default function KnowledgeBasePage() {
         processFiles(e.dataTransfer.files);
     };
 
+    const handleUploadKnowledge = (type: 'file' | 'text' | 'url') => {
+        const title = "Ophthall conclave conference";
+        console.log("uploadedData", uploadedData)
+        if (type === 'file') {
+            if (uploadedData.length === 0) {
+                return;
+            }
+            uploadKnowledgeMutate({
+                title: title,
+                type: 'file',
+                text: '',
+                source_url: '',
+                file: uploadedData[0].fileObj
+            });
+            setUploadedData([]);
+        } else if (type === 'text') {
+            if (!textContent.trim()) {
+                return;
+            }
+            uploadKnowledgeMutate({
+                title: title,
+                type: 'text',
+                text: textContent.trim(),
+                source_url: '',
+                file: ''
+            });
+            setTextContent('');
+        } else if (type === 'url') {
+            if (!websiteUrl.trim()) {
+                return;
+            }
+            try {
+                new URL(websiteUrl);
+            } catch (e) {
+                enqueueSnackbar("Please enter a valid URL", { variant: "error" })
+                return;
+            }
+            uploadKnowledgeMutate({
+                title: title,
+                type: 'url',
+                text: '',
+                source_url: websiteUrl.trim(),
+                file: ''
+            });
+            setWebsiteUrl('');
+        }
+    };
+
+    useEffect(() => {
+        if (viewMode === "edit" && knowledgeDetailsById) {
+            const data = knowledgeDetailsById.data || knowledgeDetailsById;
+            const content =  data?.raw_text;
+            setEditContent(content);
+        }
+    }, [knowledgeDetailsById, viewMode]);
+    console.log("editContent", editContent)
     return (
         <div className="space-y-8">
             <div>
@@ -78,8 +251,7 @@ export default function KnowledgeBasePage() {
                 </TabsList>
 
                 <TabsContent value="sources" className="space-y-6 mt-6">
-                    {/* Add New Source Section */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <Card
                             className={`relative border-2 transition-all duration-300 overflow-hidden ${isDragging
                                 ? 'border-blue-500 bg-blue-50/80 shadow-lg scale-[1.02]'
@@ -129,7 +301,6 @@ export default function KnowledgeBasePage() {
                                         <Button
                                             variant="default"
                                             size="lg"
-                                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all duration-300"
                                             onClick={() => fileRef.current?.click()}
                                             disabled={isPending}
                                         >
@@ -145,6 +316,66 @@ export default function KnowledgeBasePage() {
                             </CardContent>
                         </Card>
 
+                        {/* Right Column - Uploaded Files List */}
+                        <Card className="bg-white lg:col-span-2 flex flex-col">
+                            <CardHeader>
+                                <CardTitle className="text-xl">Uploaded Files</CardTitle>
+                                <CardDescription className="text-base">Recently uploaded documents</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex flex-col flex-1">
+                                <div className="flex-1">
+                                    {uploadedData.length === 0 ? (
+                                        <div className="text-center py-12 text-slate-400">
+                                            <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                                            <p className="text-base">No files uploaded yet</p>
+                                            <p className="text-sm mt-1">Upload documents to see them here</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                                            {uploadedData.map((file, index) => (
+                                                <div key={index} className="flex items-center justify-between p-3 border rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
+                                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${file.type === 'pdf' ? 'bg-red-50 text-red-500' :
+                                                            file.type === 'doc' ? 'bg-blue-50 text-blue-500' :
+                                                                'bg-slate-100 text-slate-500'
+                                                            }`}>
+                                                            <FileText className="w-5 h-5" />
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="font-medium text-sm text-slate-900 truncate">{file.name}</p>
+                                                            <p className="text-xs text-slate-500">{file.size} • {file.date}</p>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="text-slate-400 hover:text-red-500 flex-shrink-0"
+                                                        onClick={() => setUploadedData(prev => prev.filter((_, i) => i !== index))}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex justify-end pt-4 border-t mt-4">
+                                    <Button
+                                        onClick={() => {
+                                            if (uploadedData.length > 0) {
+                                                handleUploadKnowledge('file');
+                                            }
+                                        }}
+                                        disabled={uploadedData.length === 0 || uploadedData.length > 1}
+                                    >
+                                        Upload Document
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <Card className="bg-white">
                             <CardHeader>
                                 <CardTitle className="text-xl">Add Website URL</CardTitle>
@@ -154,13 +385,53 @@ export default function KnowledgeBasePage() {
                                 <div className="flex gap-2">
                                     <div className="relative flex-1">
                                         <Globe className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                                        <Input placeholder="https://cityhospital.com/services" className="pl-9" />
+                                        <Input
+                                            placeholder="https://cityhospital.com/services"
+                                            className="pl-9"
+                                            value={websiteUrl}
+                                            onChange={(e) => setWebsiteUrl(e.target.value)}
+                                        />
                                     </div>
-                                    <Button>Add</Button>
+                                    <Button onClick={() => {
+                                        if (websiteUrl.trim()) {
+                                            handleUploadKnowledge('url');
+                                        }
+                                    }} disabled={!websiteUrl.trim()}>Add</Button>
                                 </div>
                                 <p className="text-xs text-slate-400 mt-2">
                                     The AI will automatically re-crawl this link every 24 hours.
                                 </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-white lg:col-span-2">
+                            <CardHeader>
+                                <CardTitle className="text-xl">Add Text Content</CardTitle>
+                                <CardDescription className="text-base">Directly add text information for training.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Textarea
+                                    placeholder="Enter text content here... (e.g., FAQs, policies, procedures)"
+                                    className="min-h-[150px] text-base"
+                                    value={textContent}
+                                    onChange={(e) => setTextContent(e.target.value)}
+                                />
+                                <div className="flex items-center justify-between mt-3">
+                                    <p className="text-xs text-slate-400">
+                                        {textContent.length} characters
+                                    </p>
+                                    <Button
+                                        onClick={() => {
+                                            if (textContent.trim()) {
+                                                handleUploadKnowledge('text');
+
+                                            }
+                                        }}
+                                        disabled={!textContent.trim()}
+                                    >
+                                        Add Content
+                                    </Button>
+                                </div>
                             </CardContent>
                         </Card>
                     </div>
@@ -173,39 +444,92 @@ export default function KnowledgeBasePage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {[
-                                    { type: "file", name: "Hospital_Policies_2024.pdf", size: "2.4 MB", status: "Trained", date: "Oct 24, 2024" },
-                                    { type: "file", name: "Dr_Smith_Bio.docx", size: "1.1 MB", status: "Processing", date: "Just now" },
-                                    { type: "url", name: "https://cityhospital.com/pediatrics", size: "12 Pages", status: "Trained", date: "Oct 22, 2024" },
-                                ].map((item, i) => (
-                                    <div key={i} className="flex items-center justify-between p-4 border rounded-lg bg-white hover:border-blue-200 transition-colors">
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${item.type === 'file' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-500'}`}>
-                                                {item.type === 'file' ? <FileText className="w-5 h-5" /> : <LinkIcon className="w-5 h-5" />}
+                                {knowledgeData?.data?.map((item: any, i: number) => {
+                                    let icon = <FileText className="w-5 h-5" />;
+                                    let style = "bg-slate-50 text-slate-500";
+
+                                    if (item.type === 'url') {
+                                        icon = <LinkIcon className="w-5 h-5" />;
+                                        style = "bg-blue-50 text-blue-600";
+                                    } else if (item.type === 'text') {
+                                        icon = <FileText className="w-5 h-5" />;
+                                        style = "bg-orange-50 text-orange-600";
+                                    } else if (item.type === 'file') {
+                                        const lowerName = (item.file_name || item.file_url || "").toLowerCase();
+                                        if (lowerName.endsWith('.pdf')) {
+                                            icon = <FileText className="w-5 h-5" />;
+                                            style = "bg-red-50 text-red-600";
+                                        } else if (lowerName.match(/\.(doc|docx)$/)) {
+                                            icon = <FileText className="w-5 h-5" />;
+                                            style = "bg-blue-50 text-blue-600";
+                                        }
+                                    }
+
+                                    return (
+                                        <div key={i} className="flex items-center justify-between p-4 border rounded-lg bg-white hover:border-blue-200 transition-colors">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${style}`}>
+                                                    {icon}
+                                                </div>
+                                                <div>
+                                                    {item?.type === 'url' ? (
+                                                        <a
+                                                            href={item?.source_url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="font-medium text-base text-blue-600 hover:underline"
+                                                        >
+                                                            {formatDisplayKnowledge(item?.type, item)}
+                                                        </a>
+                                                    ) : (
+                                                        <p className="font-medium text-base text-slate-900">
+                                                            {formatDisplayKnowledge(item?.type, item)}
+                                                        </p>
+                                                    )}
+                                                    <p className="text-sm text-slate-500"> {formatDate(item?.created_at)}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="font-medium text-base text-slate-900">{item.name}</p>
-                                                <p className="text-sm text-slate-500">{item.size} • {item.date}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex items-center gap-2">
-                                                {item.status === 'Trained' ? (
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex items-center gap-2">
                                                     <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
                                                         <CheckCircle className="w-3.5 h-3.5" /> Trained
                                                     </span>
-                                                ) : (
-                                                    <span className="flex items-center gap-1.5 text-xs font-medium text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">
+                                                    {/* <span className="flex items-center gap-1.5 text-xs font-medium text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">
                                                         <Clock className="w-3.5 h-3.5" /> Processing
-                                                    </span>
-                                                )}
+                                                     </span> */}
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
+                                                                <span className="sr-only">Open menu</span>
+                                                                <MoreHorizontal className="w-4 h-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={() => handleView(item)}>
+                                                                <Eye className="mr-2 h-4 w-4" />
+                                                                View
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleEdit(item)}>
+                                                                <Pencil className="mr-2 h-4 w-4" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleDeleteClick(item)}
+                                                                className="text-red-600 focus:text-red-600"
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Remove
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
                                             </div>
-                                            <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-500">
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </CardContent>
                     </Card>
@@ -219,6 +543,67 @@ export default function KnowledgeBasePage() {
                     </Card>
                 </TabsContent>
             </Tabs>
-        </div>
+
+
+            <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>{viewMode === 'view' ? 'View Knowledge' : 'Edit Knowledge'}</DialogTitle>
+                        <DialogDescription>
+                            {viewMode === 'view' ? 'View the details of your knowledge source.' : 'Make changes to your knowledge source.'}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="py-4">
+                        {viewMode === "edit" && isKnowledgeByIdLoading ? (
+                            <div className="text-center py-10 text-slate-500">
+                                Loading content...
+                            </div>
+                        ) : viewMode === "view" ? (
+                            <div className="p-4 bg-slate-50 rounded-md whitespace-pre-wrap max-h-[400px] overflow-y-auto text-sm border">
+                                {(() => {
+                                    const data = knowledgeDetailsById?.data || knowledgeDetailsById;
+                                    return data?.raw_text || ""
+                                })()}
+                            </div>
+                        ) : (
+                            <Textarea
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                className="min-h-[300px] font-mono text-sm"
+                            />
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        {viewMode === 'edit' ? (
+                            <>
+                                <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>Cancel</Button>
+                                <Button onClick={handleUpdateKnowledge}>Save Changes</Button>
+                            </>
+                        ) : (
+                            <Button onClick={() => setIsViewModalOpen(false)}>Close</Button>
+                        )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+
+            {/* Delete Confirmation Dialog */}
+            < Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen} >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Knowledge Source?</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this item? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleConfirmDelete}>Delete</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog >
+        </div >
     );
 }

@@ -11,17 +11,16 @@ interface JwtPayload {
 }
 
 export const _axios = async (
-  method?: string,
-  whatsapp?: boolean,
+  method: string,
   url?: string,
   body?: any,
   contentType: string = "application/json",
   params?: any
 ) => {
   const env = process.env.NEXT_PUBLIC_ENV;
-  const APIURL = whatsapp
-    ? process.env.NEXT_PUBLIC_NGROK_URL
-    : env === "production"
+  const APIURL = 
+  env === "ngrok" ?  process.env.NEXT_PUBLIC_NGROK_URL :
+     env === "production"
     ? process.env.NEXT_PUBLIC_PRODUCTION_API_URL
     : env === "development"
     ? process.env.NEXT_PUBLIC_DEVELOPMENT_API_URL
@@ -29,7 +28,7 @@ export const _axios = async (
 
   const endpoint = `${APIURL}${url}`;
   const state: RootState = store.getState();
-  const token = whatsapp ? process.env.META_ACCESS_TOKEN : state.auth.token;
+  const token = process.env.META_ACCESS_TOKEN;
 
   if (token) {
     try {

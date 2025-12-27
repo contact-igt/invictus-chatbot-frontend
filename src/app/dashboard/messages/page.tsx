@@ -1,14 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Send, Bot, User, MoreVertical } from "lucide-react";
-import { useAddMessageMutation, useGetAllChatsQuery, useMessagesByPhoneQuery } from "@/hooks/useMessagesQuery";
+import { useAddMessageMutation, useGetAllChatsQuery, useMessagesByPhoneQuery, useUpdateSeenMutation } from "@/hooks/useMessagesQuery";
 
 const getDateLabel = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
-
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
@@ -36,13 +35,14 @@ const formattedTime = (dateString: any) => {
 }
 
 export default function MessagesPage() {
+    const bottomRef = useRef<HTMLDivElement>(null);
     const {
         data: chatList,
         isLoading: isChatsLoading,
         isError: isChatsError,
     } = useGetAllChatsQuery();
     const [filteredChats, setFilteredChats] = useState(chatList?.data);
-    const { mutate: sendMessageMutation, isPending } = useAddMessageMutation();
+    const { mutate: sendMessageMutate, isPending } = useAddMessageMutation();
     const [messageSearchText, setMessageSearchText] = useState("");
     const [filteredMessage, setFilteredMessage] = useState<any[]>([]);
     const [chatSearchText, setChatSearchText] = useState("");
@@ -52,10 +52,11 @@ export default function MessagesPage() {
         isLoading: isMessagesLoading,
         isError: isMessagesError,
     } = useMessagesByPhoneQuery(selectedChat?.phone);
-
+    const { mutate: updateSeenMutate } = useUpdateSeenMutation();
     const [message, setMessage] = useState<string>("");
 
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [chatFilter, setChatFilter] = useState<'all' | 'read' | 'unread'>('all');
 
     const handleInputChange = (e: any) => {
         setMessage(e.target.value);
@@ -73,10 +74,21 @@ export default function MessagesPage() {
 
     const handleSelectChat = (chat: any) => {
         setSelectedChat({
-            phone: chat.phone,
-            name: chat.name ?? chat.phone,
+            phone: chat?.phone,
+            name: chat?.name ?? chat.phone,
         });
     };
+    useEffect(() => {
+        if (!selectedChat?.phone) return;
+        if (!chatList?.data?.length) return;
+
+        const hasUnreadUserMessages = chatList.data.some(
+            (msg: any) => msg.seen === "false"
+        );
+        if (hasUnreadUserMessages) {
+            updateSeenMutate(selectedChat.phone);
+        }
+    }, [selectedChat?.phone, chatList?.data]);
 
     const groupMessagesByDate = (messages: any[] = []) => {
         console.log(messages)
@@ -96,7 +108,7 @@ export default function MessagesPage() {
         if (!message.trim() || isPending) return;
 
         const messageText = message.trim();
-        sendMessageMutation({
+        sendMessageMutate({
             phone: selectedChat?.phone,
             message: messageText,
         });
@@ -106,27 +118,32 @@ export default function MessagesPage() {
     useEffect(() => {
         const timer = setTimeout(() => {
             const value = chatSearchText.trim().toLowerCase();
-            if (!value) {
-                setFilteredChats(chatList?.data)
-                return;
+            let filtered = chatList?.data;
+            console.log("chats", chatList?.data)
+            if (value) {
+                filtered = filtered?.filter((chat: any) => chat?.name?.toLowerCase().includes(value) || chat?.phone?.includes(value));
             }
-            setFilteredChats(chatList?.data?.filter((chat: any) => chat?.name?.toLowerCase().includes(value) || chat?.phone?.includes(value)))
-        }, 400);
+            console.log("chatFilter", chatFilter)
+            if (chatFilter === 'read') {
+                filtered = filtered?.filter((chat: any) => chat?.seen == "true");
+            } else if (chatFilter === 'unread') {
+                filtered = filtered?.filter((chat: any) => chat?.seen == "false" || chat?.seen == null);
+            }
+            console.log("filtered", filtered)
+            setFilteredChats(filtered);
+        }, 200);
 
         return () => clearTimeout(timer);
-    }, [chatSearchText, chatList])
+    }, [chatSearchText, chatList, chatFilter])
 
     useEffect(() => {
         const value = messageSearchText?.trim().toLowerCase();
-        console.log("value", value)
         let messagesToFilter = messagesData?.data;
-        console.log("messagesData", messagesData)
 
         if (!value) {
             setFilteredMessage(messagesToFilter);
             return;
         }
-        console.log("messagesToFilter", messagesToFilter)
         const filtered = messagesToFilter?.filter((msg: any) =>
             msg?.message?.toLowerCase().includes(value)
         );
@@ -134,7 +151,7 @@ export default function MessagesPage() {
         setFilteredMessage(filtered);
 
     }, [messageSearchText, selectedChat, messagesData]);
-    console.log("selectedChat", selectedChat)
+
     useEffect(() => {
         if (chatList?.data?.length && !selectedChat) {
             setSelectedChat({
@@ -151,10 +168,16 @@ export default function MessagesPage() {
     const groupedMessages = groupMessagesByDate(displayMessages);
     const groupedEntries = Object.entries(groupedMessages);
 
+    useEffect(() => {
+        bottomRef?.current?.scrollIntoView({
+            behavior: "smooth",
+        })
+    }, [groupedMessages])
+
     return (
         <div className="flex h-[calc(100vh-8rem)] bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-lg">
             <div className="w-1/3 border-r border-slate-200 flex flex-col bg-slate-50/30">
-                <div className="p-5 border-b border-slate-200 bg-white">
+                <div className="p-5 border-b border-slate-200 bg-white space-y-3">
                     <div className="relative">
                         <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
                         <Input
@@ -162,6 +185,41 @@ export default function MessagesPage() {
                             className="pl-10 h-11 text-base bg-slate-50 border-slate-200 focus:bg-white transition-colors rounded-3xl"
                             placeholder="Search conversations..."
                         />
+                    </div>
+                    <div className="flex gap-2">
+                        <Button
+                            onClick={() => setChatFilter('all')}
+                            variant={chatFilter === 'all' ? 'default' : 'outline'}
+                            size="sm"
+                            className={`flex-1 rounded-full text-xs font-medium transition-all ${chatFilter === 'all'
+                                ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-md'
+                                : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                                }`}
+                        >
+                            All
+                        </Button>
+                        <Button
+                            onClick={() => setChatFilter('read')}
+                            variant={chatFilter === 'read' ? 'default' : 'outline'}
+                            size="sm"
+                            className={`flex-1 rounded-full text-xs font-medium transition-all ${chatFilter === 'read'
+                                ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-md'
+                                : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                                }`}
+                        >
+                            Read
+                        </Button>
+                        <Button
+                            onClick={() => setChatFilter('unread')}
+                            variant={chatFilter === 'unread' ? 'default' : 'outline'}
+                            size="sm"
+                            className={`flex-1 rounded-full text-xs font-medium transition-all ${chatFilter === 'unread'
+                                ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-md'
+                                : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                                }`}
+                        >
+                            Unread
+                        </Button>
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
@@ -181,9 +239,9 @@ export default function MessagesPage() {
                                 <div className="flex justify-between w-full items-start gap-2 min-w-0">
                                     <div className="min-w-0 flex-1">
                                         <span className="font-semibold text-base text-slate-900 block">{chat.phone}</span>
-                                        <p className="text-sm text-slate-500 truncate mt-0.5">{chat.message.length > 40
-                                            ? chat.message.slice(0, 40) + "..."
-                                            : chat.message}</p>
+                                        <p className="text-sm text-slate-500 truncate mt-0.5">{chat?.message?.length > 40
+                                            ? chat?.message.slice(0, 40) + "..."
+                                            : chat?.message}</p>
                                     </div>
                                     <span className="text-xs text-slate-400 whitespace-nowrap flex-shrink-0">{new Date(chat.created_at).toLocaleDateString("en-GB")}</span>
                                 </div>
@@ -279,7 +337,36 @@ export default function MessagesPage() {
                                                 msg.message
                                             )}
                                         </p>
-                                        <span className="block text-xs text-right text-slate-500">{formattedTime(msg?.created_at)}</span>
+                                        <div className="flex items-center justify-end gap-1 text-xs">
+                                            <span className="text-slate-500">{formattedTime(msg?.created_at)}</span>
+                                            {(msg.sender === 'bot' || msg.sender === 'admin') && <>{
+                                                msg.seen ? <svg
+                                                    viewBox="0 0 16 15"
+                                                    width="16"
+                                                    height="15"
+                                                    className="text-blue-500"
+                                                >
+                                                    <path
+                                                        fill="currentColor"
+                                                        d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"
+                                                    />
+                                                </svg> : (
+                                                    <svg
+                                                        viewBox="0 0 16 15"
+                                                        width="16"
+                                                        height="15"
+                                                        className="text-gray-400"
+                                                    >
+                                                        <path
+                                                            fill="currentColor"
+                                                            d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"
+                                                        />
+                                                    </svg>
+                                                )}
+                                                <div ref={bottomRef} />
+                                            </>
+                                            }
+                                        </div>
                                     </div>
                                 </div>
                             ))}

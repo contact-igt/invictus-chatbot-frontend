@@ -6,15 +6,22 @@ export interface SendMessageData {
 }
 
 export class MessagesApiData {
-  getMessagesByPhone = async (phone:string) => {
-    return await _axios("get", true, `/api/whatsapp/chats/${phone}`);
+  getMessagesByPhone = async (phone: string) => {
+    return await _axios("get", `/chats/${phone}`);
   };
 
-  getAllChats = async ()=>{
-    return await _axios("get", true, "/api/whatsapp/chats")
+  getAllChats = async () => {
+    return await _axios("get", "/chats");
   };
-  
+
   addMessage = async (data: SendMessageData) => {
-    return await _axios("post", true, "/api/whatsapp/chats/send", data);
+    return await _axios("post", "/chats/send", data);
+  };
+
+  updateSeen = async (phone: string) => {
+    return await _axios(
+      "put",
+      `/chats/mark?phone=${phone}`
+    );
   };
 }

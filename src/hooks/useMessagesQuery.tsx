@@ -2,6 +2,7 @@ import { AxiosError } from "axios";
 import { useSnackbar } from "notistack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessagesApiData } from "@/services/messages";
+import { Variable } from "lucide-react";
 
 const MessagesApis = new MessagesApiData();
 
@@ -34,7 +35,7 @@ export const useMessagesByPhoneQuery = (phone_number: string) => {
 
 export const useAddMessageMutation = () => {
     const queryClient = useQueryClient();
-    const { enqueueSnackbar } = useSnackbar();
+    // const { enqueueSnackbar } = useSnackbar();
 
     return useMutation({
         mutationFn: (data: any) => {
@@ -44,10 +45,28 @@ export const useAddMessageMutation = () => {
             queryClient.invalidateQueries({
                 queryKey: ["messages", variables.phone],
             });
-            enqueueSnackbar('Message sent successfully!', { variant: 'success' });
+            // enqueueSnackbar('Message sent successfully!', { variant: 'success' });
         },
         onError: (error: Error) => {
-            enqueueSnackbar(error.message || 'Failed to send message', { variant: 'error' });
+            // enqueueSnackbar(error.message || 'Failed to send message', { variant: 'error' });
         },
     });
 };
+
+export const useUpdateSeenMutation = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (phone_number: any) => {
+            return MessagesApis.updateSeen(phone_number);
+        },
+        onSuccess: (_, phone) => {
+            queryClient.invalidateQueries({
+                queryKey: ["messages", phone],
+            });
+            queryClient.invalidateQueries({
+                queryKey: ["chats"],
+            });
+        },
+    })
+}
