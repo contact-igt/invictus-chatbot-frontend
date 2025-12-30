@@ -22,6 +22,45 @@ const getDateLabel = (dateStr: string) => {
     return date.toLocaleDateString("en-GB");
 };
 
+const formatChatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+
+    const startOfToday = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+    );
+
+    const startOfYesterday = new Date(startOfToday);
+    startOfYesterday.setDate(startOfToday.getDate() - 1);
+
+    // Today → show time
+    if (date >= startOfToday) {
+        return date.toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+        });
+    }
+
+    // Yesterday → show "Yesterday"
+    if (date >= startOfYesterday) {
+        return "Yesterday";
+    }
+
+    // Within last 7 days → show weekday
+    const diffDays =
+        (startOfToday.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (diffDays < 7) {
+        return date.toLocaleDateString("en-IN", { weekday: "long" });
+    }
+
+    // Older → show date
+    return date.toLocaleDateString("en-GB");
+};
+
 const formattedTime = (dateString: any) => {
     if (!dateString) return "";
 
@@ -175,9 +214,9 @@ export default function MessagesPage() {
     }, [groupedMessages])
 
     return (
-        <div className="flex h-[calc(100vh-8rem)] bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-lg">
-            <div className="w-1/3 border-r border-slate-200 flex flex-col bg-slate-50/30">
-                <div className="p-5 border-b border-slate-200 bg-white space-y-3">
+        <div className="flex h-[calc(100vh-8rem)] bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+            <div className="w-1/3 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/30 dark:bg-slate-900/30">
+                <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
                     <div className="relative">
                         <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
                         <Input
@@ -193,7 +232,7 @@ export default function MessagesPage() {
                             size="sm"
                             className={`flex-1 rounded-full text-xs font-medium transition-all ${chatFilter === 'all'
                                 ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-md'
-                                : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                                : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                                 }`}
                         >
                             All
@@ -204,7 +243,7 @@ export default function MessagesPage() {
                             size="sm"
                             className={`flex-1 rounded-full text-xs font-medium transition-all ${chatFilter === 'read'
                                 ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-md'
-                                : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                                : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                                 }`}
                         >
                             Read
@@ -215,7 +254,7 @@ export default function MessagesPage() {
                             size="sm"
                             className={`flex-1 rounded-full text-xs font-medium transition-all ${chatFilter === 'unread'
                                 ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-md'
-                                : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                                : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                                 }`}
                         >
                             Unread
@@ -238,25 +277,59 @@ export default function MessagesPage() {
                                 </div>
                                 <div className="flex justify-between w-full items-start gap-2 min-w-0">
                                     <div className="min-w-0 flex-1">
-                                        <span className="font-semibold text-base text-slate-900 block">{chat.phone}</span>
-                                        <p className="text-sm text-slate-500 truncate mt-0.5">{chat?.message?.length > 40
-                                            ? chat?.message.slice(0, 40) + "..."
-                                            : chat?.message}</p>
+                                        <span
+                                            className={`font-semibold text-base block
+    ${selectedChat?.phone === chat.phone
+                                                    ? "text-slate-900 dark:text-slate-900"
+                                                    : "text-slate-900 dark:text-slate-100"}
+  `}
+                                        >
+                                            {chat.phone}
+                                        </span>
+                                        <div className="flex items-center gap-1 justify-start mt-0.5">
+                                            {
+                                                chat.seen == "true" ? <svg
+                                                    viewBox="0 0 16 15"
+                                                    width="16"
+                                                    height="15"
+                                                    className="text-blue-500 mt-0.45"
+                                                >
+                                                    <path
+                                                        fill="currentColor"
+                                                        d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"
+                                                    />
+                                                </svg> : (
+                                                    <svg
+                                                        viewBox="0 0 16 15"
+                                                        width="16"
+                                                        height="15"
+                                                        className="text-gray-400 mt-0.45"
+                                                    >
+                                                        <path
+                                                            fill="currentColor"
+                                                            d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"
+                                                        />
+                                                    </svg>
+                                                )}
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{chat?.message?.length > 40
+                                                ? chat?.message.slice(0, 40) + "..."
+                                                : chat?.message}</p>
+                                        </div>
                                     </div>
-                                    <span className="text-xs text-slate-400 whitespace-nowrap flex-shrink-0">{new Date(chat.created_at).toLocaleDateString("en-GB")}</span>
+                                    <span className="text-xs text-slate-500 whitespace-nowrap flex-shrink-0"> {formatChatDate(chat.created_at)}</span>
                                 </div>
                             </div>
                         </div>
                     ))}
                 </div>
             </div>
-            <div className="flex-1 flex flex-col bg-slate-50">
-                <div className="p-5 border-b border-slate-200 bg-white flex justify-between items-center shadow-sm h-[84px]">
+            <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-950">
+                <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center shadow-sm h-[84px]">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-md">
                             <User className="w-5 h-5" />
                         </div>
-                        <h3 className="font-bold text-lg text-slate-800">{selectedChat?.name}</h3>
+                        <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">{selectedChat?.name}</h3>
                     </div>
                     <div className="flex items-center gap-3">
                         {!isSearchOpen ? (
@@ -303,7 +376,7 @@ export default function MessagesPage() {
                         </Button>
                     </div>
                 </div>
-                <div className="flex-1 p-6 space-y-4 overflow-y-auto bg-[url('/assets/messageBg2.png')] bg-cover bg-center bg-no-repeat">
+                <div className="flex-1 p-6 space-y-4 overflow-y-auto bg-[url('/assets/messageBg.png')] dark:bg-[url('/assets/darkBg3.jpg')] bg-cover bg-center bg-no-repeat">
                     {groupedEntries?.map(([dateLabel, msgs]: any, index: number) => (
                         <div key={dateLabel}>
                             <div className="flex justify-center my-6">
@@ -374,7 +447,7 @@ export default function MessagesPage() {
                     ))}
                 </div>
 
-                <div className="p-5 bg-white border-t border-slate-200 flex gap-3 shadow-lg">
+                <div className="p-5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex gap-3 shadow-lg">
                     <Input
                         onChange={handleInputChange}
                         value={message}

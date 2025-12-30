@@ -7,6 +7,7 @@ const KnowledgeApis = new knowledgeApiData();
 
 export interface UploadKnowledgeData {
     title: string,
+    file_name: string,
     type: string,
     text: string,
     source_url: string,
@@ -21,6 +22,7 @@ export const useUploadKnowledgeMutation = () => {
         mutationFn: (data: UploadKnowledgeData) => {
             const formData = new FormData();
             formData.append("title", data?.title);
+            formData.append("file_name", data?.file_name);
             formData.append("type", data?.type);
             formData.append("text", data?.text || "");
             formData.append("source_url", data?.source_url || "");

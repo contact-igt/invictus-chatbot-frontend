@@ -6,6 +6,7 @@ import { SnackbarProvider } from "notistack";
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { store, persistor } from "@/redux/store";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -22,7 +23,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <PersistGate loading={null} persistor={persistor}>
         <QueryClientProvider client={queryClient}>
           <SnackbarProvider maxSnack={3} anchorOrigin={{ vertical: 'top', horizontal: 'right' }}>
-            {children}
+            <ThemeProvider>
+              {children}
+            </ThemeProvider>
           </SnackbarProvider>
         </QueryClientProvider>
       </PersistGate>

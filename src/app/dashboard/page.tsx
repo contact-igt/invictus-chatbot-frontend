@@ -17,8 +17,8 @@ export default function DashboardOverview() {
     return (
         <div className="space-y-8">
             <div>
-                <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-                <p className="text-slate-500">Welcome back, Dr. Smith.</p>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Dashboard</h1>
+                <p className="text-slate-500 dark:text-slate-400">Welcome back, Dr. Smith.</p>
             </div>
 
             {/* Stats Grid */}
@@ -32,10 +32,10 @@ export default function DashboardOverview() {
                     <Card key={i}>
                         <CardContent className="p-6 flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-                                <h3 className="text-2xl font-bold mt-2">{stat.val}</h3>
+                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{stat.label}</p>
+                                <h3 className="text-2xl font-bold mt-2 text-slate-900 dark:text-slate-100">{stat.val}</h3>
                             </div>
-                            <div className={`p-3 bg-slate-50 rounded-full ${stat.color}`}>
+                            <div className={`p-3 bg-slate-50 dark:bg-slate-800 rounded-full ${stat.color}`}>
                                 <stat.icon className="w-6 h-6" />
                             </div>
                         </CardContent>
