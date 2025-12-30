@@ -262,65 +262,84 @@ export default function MessagesPage() {
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
-                    {filteredChats?.map((chat: any, index: number) => (
-                        <div
-                            key={index}
-                            onClick={() => handleSelectChat(chat)}
-                            className={`p-4 border-b border-slate-100 cursor-pointer transition-all duration-200 ${selectedChat?.phone === chat.phone
-                                ? 'bg-blue-50 border-l-4 border-l-blue-500'
-                                : 'hover:bg-white hover:shadow-sm border-l-4 border-l-transparent'
-                                }`}
-                        >
-                            <div className="flex justify-start items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-md flex-shrink-0">
-                                    <User className="w-5 h-5" />
-                                </div>
-                                <div className="flex justify-between w-full items-start gap-2 min-w-0">
-                                    <div className="min-w-0 flex-1">
-                                        <span
-                                            className={`font-semibold text-base block
+                    {isChatsLoading ? (
+                        <div className="flex flex-col items-center justify-center h-full py-12">
+                            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
+                            <p className="text-sm text-slate-500 font-medium">Loading chats...</p>
+                        </div>
+                    ) : filteredChats && filteredChats.length > 0 ? (
+                        filteredChats.map((chat: any, index: number) => (
+                            <div
+                                key={index}
+                                onClick={() => handleSelectChat(chat)}
+                                className={`p-4 border-b border-slate-100 cursor-pointer transition-all duration-200 ${selectedChat?.phone === chat.phone
+                                    ? 'bg-blue-50 border-l-4 border-l-blue-500'
+                                    : 'hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm border-l-4 border-l-transparent'
+                                    }`}
+                            >
+                                <div className="flex justify-start items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-md flex-shrink-0">
+                                        <User className="w-5 h-5" />
+                                    </div>
+                                    <div className="flex justify-between w-full items-start gap-2 min-w-0">
+                                        <div className="min-w-0 flex-1">
+                                            <span
+                                                className={`font-semibold text-base block
     ${selectedChat?.phone === chat.phone
-                                                    ? "text-slate-900 dark:text-slate-900"
-                                                    : "text-slate-900 dark:text-slate-100"}
+                                                        ? "text-slate-900 dark:text-slate-900"
+                                                        : "text-slate-900 dark:text-slate-100"}
   `}
-                                        >
-                                            {chat.phone}
-                                        </span>
-                                        <div className="flex items-center gap-1 justify-start mt-0.5">
-                                            {
-                                                chat.seen == "true" ? <svg
-                                                    viewBox="0 0 16 15"
-                                                    width="16"
-                                                    height="15"
-                                                    className="text-blue-500 mt-0.45"
-                                                >
-                                                    <path
-                                                        fill="currentColor"
-                                                        d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"
-                                                    />
-                                                </svg> : (
-                                                    <svg
+                                            >
+                                                {chat.phone}
+                                            </span>
+                                            <div className="flex items-center gap-1 justify-start mt-0.5">
+                                                {
+                                                    chat.seen == "true" ? <svg
                                                         viewBox="0 0 16 15"
                                                         width="16"
                                                         height="15"
-                                                        className="text-gray-400 mt-0.45"
+                                                        className="text-blue-500 mt-0.45"
                                                     >
                                                         <path
                                                             fill="currentColor"
                                                             d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"
                                                         />
-                                                    </svg>
-                                                )}
-                                            <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{chat?.message?.length > 40
-                                                ? chat?.message.slice(0, 40) + "..."
-                                                : chat?.message}</p>
+                                                    </svg> : (
+                                                        <svg
+                                                            viewBox="0 0 16 15"
+                                                            width="16"
+                                                            height="15"
+                                                            className="text-gray-400 mt-0.45"
+                                                        >
+                                                            <path
+                                                                fill="currentColor"
+                                                                d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"
+                                                            />
+                                                        </svg>
+                                                    )}
+                                                <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{chat?.message?.length > 40
+                                                    ? chat?.message.slice(0, 40) + "..."
+                                                    : chat?.message}</p>
+                                            </div>
                                         </div>
+                                        <span className="text-xs text-slate-500 whitespace-nowrap flex-shrink-0"> {formatChatDate(chat.created_at)}</span>
                                     </div>
-                                    <span className="text-xs text-slate-500 whitespace-nowrap flex-shrink-0"> {formatChatDate(chat.created_at)}</span>
                                 </div>
                             </div>
+                        ))
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full px-6 py-12">
+                            <div className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+                                <User className="w-10 h-10 text-slate-400 dark:text-slate-500" />
+                            </div>
+                            <p className="text-slate-500 dark:text-slate-400 text-center text-base font-medium">
+                                No chats or messages found
+                            </p>
+                            <p className="text-slate-400 dark:text-slate-500 text-center text-sm mt-2">
+                                {chatSearchText ? "Try adjusting your search" : "Start a conversation to see it here"}
+                            </p>
                         </div>
-                    ))}
+                    )}
                 </div>
             </div>
             <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-950">
@@ -376,75 +395,82 @@ export default function MessagesPage() {
                         </Button>
                     </div>
                 </div>
-                <div className="flex-1 p-6 space-y-4 overflow-y-auto bg-[url('/assets/messageBg.png')] dark:bg-[url('/assets/darkBg3.jpg')] bg-cover bg-center bg-no-repeat">
-                    {groupedEntries?.map(([dateLabel, msgs]: any, index: number) => (
-                        <div key={dateLabel}>
-                            <div className="flex justify-center my-6">
-                                <span className="px-4 py-1.5 text-xs font-medium bg-white/90 text-slate-700 rounded-full shadow-sm backdrop-blur-sm">
-                                    {dateLabel}
-                                </span>
-                            </div>
-                            {msgs.map((msg: any, index: number) => (
-                                <div key={index} className={`flex gap-2 my-3 items-end ${msg.sender === 'user' ? 'justify-start' : 'justify-end'}`}>
-                                    {msg.sender === 'bot' ?
-                                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white flex items-center justify-center shadow-md flex-shrink-0">
-                                            <Bot className="w-4 h-4" />
-                                        </div> : msg.sender === 'admin' ?
-                                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-md flex-shrink-0">
-                                                <User className="w-4 h-4" />
-                                            </div> : ""
-                                    }
-                                    <div className={`max-w-[70%] px-4 py-3 rounded-2xl shadow-md ${msg.sender === 'bot' || msg.sender == 'admin'
-                                        ? 'bg-[#dcf8c6] text-slate-800 rounded-bl-sm'
-                                        : 'bg-white text-slate-800 rounded-br-sm'
-                                        }`}>
-                                        <p className="text-base mb-1.5 leading-relaxed">
-                                            {messageSearchText ? (
-                                                <span dangerouslySetInnerHTML={{
-                                                    __html: msg.message.replace(
-                                                        new RegExp(`(${messageSearchText})`, 'gi'),
-                                                        (match: any) => `<span class="bg-yellow-200 text-slate-900 px-0.5 rounded">${match}</span>`
-                                                    )
-                                                }} />
-                                            ) : (
-                                                msg.message
-                                            )}
-                                        </p>
-                                        <div className="flex items-center justify-end gap-1 text-xs">
-                                            <span className="text-slate-500">{formattedTime(msg?.created_at)}</span>
-                                            {(msg.sender === 'bot' || msg.sender === 'admin') && <>{
-                                                msg.seen ? <svg
-                                                    viewBox="0 0 16 15"
-                                                    width="16"
-                                                    height="15"
-                                                    className="text-blue-500"
-                                                >
-                                                    <path
-                                                        fill="currentColor"
-                                                        d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"
-                                                    />
-                                                </svg> : (
-                                                    <svg
+                <div className="flex-1 p-6 space-y-4 overflow-y-auto bg-[url('/assets/messageBg.png')] dark:bg-[url('/assets/darkbg.png')] bg-[100% 50%] bg-repeat bg-[length:250px_300px]">
+                    {isMessagesLoading ? (
+                        <div className="flex flex-col items-center justify-center h-full">
+                            <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+                            <p className="text-base font-medium text-slate-600 dark:text-slate-300">Loading messages...</p>
+                        </div>
+                    ) : (
+                        groupedEntries?.map(([dateLabel, msgs]: any, index: number) => (
+                            <div key={dateLabel}>
+                                <div className="flex justify-center my-6">
+                                    <span className="px-4 py-1.5 text-xs font-medium bg-white/90 text-slate-700 rounded-full shadow-sm backdrop-blur-sm">
+                                        {dateLabel}
+                                    </span>
+                                </div>
+                                {msgs.map((msg: any, index: number) => (
+                                    <div key={index} className={`flex gap-2 my-3 items-end ${msg.sender === 'user' ? 'justify-start' : 'justify-end'}`}>
+                                        {msg.sender === 'bot' ?
+                                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white flex items-center justify-center shadow-md flex-shrink-0">
+                                                <Bot className="w-4 h-4" />
+                                            </div> : msg.sender === 'admin' ?
+                                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-md flex-shrink-0">
+                                                    <User className="w-4 h-4" />
+                                                </div> : ""
+                                        }
+                                        <div className={`max-w-[70%] px-4 py-3 rounded-2xl shadow-md ${msg.sender === 'bot' || msg.sender == 'admin'
+                                            ? 'bg-[#dcf8c6] text-slate-800 rounded-bl-sm'
+                                            : 'bg-white text-slate-800 rounded-br-sm'
+                                            }`}>
+                                            <p className="text-base mb-1.5 leading-relaxed">
+                                                {messageSearchText ? (
+                                                    <span dangerouslySetInnerHTML={{
+                                                        __html: msg.message.replace(
+                                                            new RegExp(`(${messageSearchText})`, 'gi'),
+                                                            (match: any) => `<span class="bg-yellow-200 text-slate-900 px-0.5 rounded">${match}</span>`
+                                                        )
+                                                    }} />
+                                                ) : (
+                                                    msg.message
+                                                )}
+                                            </p>
+                                            <div className="flex items-center justify-end gap-1 text-xs">
+                                                <span className="text-slate-500">{formattedTime(msg?.created_at)}</span>
+                                                {(msg.sender === 'bot' || msg.sender === 'admin') && <>{
+                                                    msg.seen ? <svg
                                                         viewBox="0 0 16 15"
                                                         width="16"
                                                         height="15"
-                                                        className="text-gray-400"
+                                                        className="text-blue-500"
                                                     >
                                                         <path
                                                             fill="currentColor"
                                                             d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"
                                                         />
-                                                    </svg>
-                                                )}
-                                                <div ref={bottomRef} />
-                                            </>
-                                            }
+                                                    </svg> : (
+                                                        <svg
+                                                            viewBox="0 0 16 15"
+                                                            width="16"
+                                                            height="15"
+                                                            className="text-gray-400"
+                                                        >
+                                                            <path
+                                                                fill="currentColor"
+                                                                d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"
+                                                            />
+                                                        </svg>
+                                                    )}
+                                                    <div ref={bottomRef} />
+                                                </>
+                                                }
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    ))}
+                                ))}
+                            </div>
+                        ))
+                    )}
                 </div>
 
                 <div className="p-5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex gap-3 shadow-lg">

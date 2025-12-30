@@ -1,14 +1,13 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Link as LinkIcon, UploadCloud, Trash2, Globe, CheckCircle, Clock, Pencil, Eye, MoreHorizontal, File, DownloadIcon } from "lucide-react";
 import { useSnackbar } from "notistack";
-import { extractTextFromFile } from "../../../utils/ocr.js"
+import { extractTextFromFile } from "../../../utils/ocr.js";
 import {
     Dialog,
     DialogContent,
@@ -27,6 +26,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useGetKnowledgesQuery, useUploadKnowledgeMutation, useUpdateKnowledgeMutation, useDeleteKnowledgeById, useKnowledgeByIdQuery } from "@/hooks/useUploadKnowledge";
+import PromptConfiguration from "./promptConfiguration";
+import { useDeletePromptMutation } from "@/hooks/usePromptQuery";
 
 const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -61,25 +62,26 @@ const formatDisplayKnowledge = (type: string, data: any): string => {
 export default function KnowledgeBasePage() {
     const { enqueueSnackbar } = useSnackbar();
     const fileRef = useRef<HTMLInputElement>(null);
-    const [activeTab, setActiveTab] = useState("sources");
+    const [uploading, setUploading] = useState(false);
     const { data: knowledgeData, isLoading: isKnowledgeLoading, isError } = useGetKnowledgesQuery();
     const [isDragging, setIsDragging] = useState(false);
     const { mutate: uploadKnowledgeMutate, isPending } = useUploadKnowledgeMutation();
-    const [uploadedData, setUploadedData] = useState<Array<{ name: string, size: string, date: string, type: string, fileObj?: File }>>([]);
+    const [uploadedData, setUploadedData] = useState<Array<{ name: string, size: string, date: string, type: string, fileObj?: File, text: string }>>([]);
     const [websiteUrl, setWebsiteUrl] = useState("");
     const [textContent, setTextContent] = useState("");
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-    const [selectedItem, setSelectedItem] = useState<any>(null);
+    const [selectedItem, setSelectedItem] = useState<{ item: any, type?: string } | null>(null);
     const [viewMode, setViewMode] = useState<'view' | 'edit'>('view');
     const [editContent, setEditContent] = useState("");
-    const { data: knowledgeDetailsById, isLoading: isKnowledgeByIdLoading } = useKnowledgeByIdQuery(selectedItem?.id);
+    const { data: knowledgeDetailsById, isLoading: isKnowledgeByIdLoading } = useKnowledgeByIdQuery(selectedItem?.item?.id);
 
     const { mutate: updateKnowledgeMutate } = useUpdateKnowledgeMutation();
-    console.log("knowledgeDetailsById", knowledgeDetailsById)
+    const { mutate: updatePromptMutute } = useUpdateKnowledgeMutation();
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [itemToDelete, setItemToDelete] = useState<any>(null);
+    const [itemToDelete, setItemToDelete] = useState<{ item: any, type: string } | null>(null);
 
     const { mutate: deleteKnowledgeMutate } = useDeleteKnowledgeById();
+    const { mutate: deletePromptMutate } = useDeletePromptMutation();
 
     const handleView = (item: any) => {
         setSelectedItem(item);
@@ -87,13 +89,13 @@ export default function KnowledgeBasePage() {
         setIsViewModalOpen(true);
     };
 
-    const handleEdit = (item: any) => {
-        setSelectedItem(item);
+    const handleEdit = (item: any, type: string) => {
+        setSelectedItem({item, type});
         setViewMode('edit');
         setIsViewModalOpen(true);
     };
 
-    const handleUpdateKnowledge = () => {
+    const handleUpdate = () => {
         if (!selectedItem) return;
         const payload: {
             title: string;
@@ -102,28 +104,40 @@ export default function KnowledgeBasePage() {
             title: "Ophthall conclave conference",
             text: editContent
         }
-        updateKnowledgeMutate({
-            id: selectedItem.id,
+        if(selectedItem?.type == "knowledge"){
+                    updateKnowledgeMutate({
+            id: selectedItem.item.id,
             data: payload
         });
+        }
+        else if(selectedItem?.type == "prompt"){
+            updatePromptMutute({
+
+            })
+        }
         setIsViewModalOpen(false);
     };
 
-    const handleDeleteClick = (item: any) => {
-        setItemToDelete(item);
+    const handleDeleteClick = (item: any, type: string) => {
+        console.log("item", item)
+        setItemToDelete({ item, type });
         setIsDeleteModalOpen(true);
     };
 
     const handleConfirmDelete = () => {
-        if (itemToDelete) {
-            deleteKnowledgeMutate(itemToDelete.id);
+        if (itemToDelete?.type == "knowledge") {
+            deleteKnowledgeMutate(itemToDelete.item.id);
+            setIsDeleteModalOpen(false);
+            setItemToDelete(null);
+        }
+        else if (itemToDelete?.type == "prompt") {
+            deletePromptMutate(itemToDelete.item.id);
             setIsDeleteModalOpen(false);
             setItemToDelete(null);
         }
     };
-    console.log("knowledgeData", knowledgeData)
-    const processFiles = async(files: FileList | null) => {
-        const MAX_FILE_SIZE_MB = 2;
+    const processFiles = async (files: FileList | null) => {
+        const MAX_FILE_SIZE_MB = 5;
         const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
         if (!files || files.length === 0) return;
         const allowedTypes = [
@@ -132,15 +146,17 @@ export default function KnowledgeBasePage() {
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "text/plain",
         ];
-
+        setUploading(true);
         const validFiles: File[] = [];
 
         Array.from(files).forEach((file) => {
             if (!allowedTypes.includes(file.type)) {
+                setUploading(false);
                 enqueueSnackbar(`File not allowed`, { variant: "error" });
                 return;
             }
             if (file.size > MAX_FILE_SIZE_BYTES) {
+                setUploading(false);
                 enqueueSnackbar(`File too large`, { variant: "error" });
                 return;
             }
@@ -148,9 +164,8 @@ export default function KnowledgeBasePage() {
         });
 
         if (validFiles.length === 0) return;
-        console.log("validFiles", validFiles)
         // Add files to uploaded files list
-        const newFiles = await  Promise.all(validFiles.map(async(file) => {
+        const newFiles = await Promise.all(validFiles.map(async (file) => {
             const text = await extractTextFromFile(file);
             console.log("text", text)
             return {
@@ -162,7 +177,7 @@ export default function KnowledgeBasePage() {
                 text
             }
         }));
-
+        setUploading(false);
         setUploadedData(prev => [...newFiles, ...prev]);
     };
 
@@ -206,7 +221,7 @@ export default function KnowledgeBasePage() {
                 ,
                 // type: uploadedData[0]?.type,
                 type: "file",
-                text: 'Ophthall 2026, the 8th edition of India’s exclusive Practice Development Conclave, will be held from January 9–12, 2026 at the CIDCO Exhibition & Convention Centre, Navi Mumbai.',
+                text: uploadedData[0]?.text,
                 source_url: '',
                 file: ""
                 // file: uploadedData[0]?.fileObj
@@ -246,8 +261,11 @@ export default function KnowledgeBasePage() {
                 text: '',
                 source_url: websiteUrl.trim(),
                 file: ''
+            }, {
+                onSuccess: () => {
+                    setWebsiteUrl('');
+                }
             });
-            setWebsiteUrl('');
         }
     };
 
@@ -258,7 +276,7 @@ export default function KnowledgeBasePage() {
             setEditContent(content);
         }
     }, [knowledgeDetailsById, viewMode]);
-    console.log("editContent", editContent)
+    console.log("editContent", editContent);
     return (
         <div className="space-y-8">
             <div>
@@ -269,15 +287,15 @@ export default function KnowledgeBasePage() {
             <Tabs defaultValue="sources" className="w-full">
                 <TabsList className="grid w-full grid-cols-2 max-w-[400px] bg-slate-100 dark:bg-slate-800">
                     <TabsTrigger value="sources">Data Sources</TabsTrigger>
-                    <TabsTrigger value="settings">Settings</TabsTrigger>
+                    <TabsTrigger value="Prompt_Configuration">Prompts Configuration</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="sources" className="space-y-6 mt-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                         <Card
                             className={`relative border-2 transition-all duration-300 overflow-hidden ${isDragging
                                 ? 'border-blue-500 bg-blue-50/80 dark:bg-blue-950/30 shadow-lg scale-[1.02]'
-                                : 'border-dashed border-slate-300 dark:border-slate-700 bg-gradient-to-br from-slate-50 to-blue-50/30 dark:from-slate-900 dark:to-blue-950/20 hover:border-blue-400 hover:shadow-md'
+                                : 'border-dashed border-slate-300 dark:border-slate-700 bg-gradient-to-br lg:col-span-2 from-slate-50 to-blue-50/30 dark:from-slate-900 dark:to-blue-950/20 hover:border-blue-400 hover:shadow-md'
                                 }`}
                             onDragEnter={handleDragEnter}
                             onDragOver={handleDragOver}
@@ -289,7 +307,7 @@ export default function KnowledgeBasePage() {
                                 <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-indigo-100 opacity-50 animate-pulse" />
                             )}
 
-                            <CardContent className="relative flex flex-col items-center justify-center py-12 text-center cursor-pointer">
+                            <CardContent className="relative flex flex-col items-center justify-center py-12 text-center  cursor-pointer">
                                 <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-all duration-300 ${isDragging
                                     ? 'bg-blue-500 text-white scale-110 shadow-lg'
                                     : 'bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-600'
@@ -324,14 +342,14 @@ export default function KnowledgeBasePage() {
                                             variant="default"
                                             size="lg"
                                             onClick={() => fileRef.current?.click()}
-                                            disabled={isPending}
+                                            disabled={uploading || isPending}
                                         >
                                             <UploadCloud className="w-4 h-4 mr-2" />
                                             <span className="text-base">Click here to select files</span>
                                         </Button>
 
                                         <p className="text-xs text-slate-400 mt-4">
-                                            Supported formats: PDF, DOCX, DOC, TXT
+                                            Supported formats: PDF, DOCX, DOC, TXT  (Max 5MB)
                                         </p>
                                     </>
                                 )}
@@ -339,14 +357,20 @@ export default function KnowledgeBasePage() {
                         </Card>
 
                         {/* Right Column - Uploaded Files List */}
-                        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 lg:col-span-2 flex flex-col">
+                        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 lg:col-span-3 flex flex-col">
                             <CardHeader>
                                 <CardTitle className="text-xl text-slate-900 dark:text-slate-100">Uploaded Files</CardTitle>
                                 <CardDescription className="text-base text-slate-500 dark:text-slate-400">Recently uploaded documents</CardDescription>
                             </CardHeader>
                             <CardContent className="flex flex-col flex-1">
                                 <div className="flex-1">
-                                    {uploadedData.length === 0 ? (
+                                    {uploading ? (
+                                        <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                                            <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+                                            <p className="text-base font-medium text-slate-900 dark:text-slate-100">Processing files...</p>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">This may take a moment</p>
+                                        </div>
+                                    ) : uploadedData.length === 0 ? (
                                         <div className="text-center py-12 text-slate-400">
                                             <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
                                             <p className="text-base">No files uploaded yet</p>
@@ -397,8 +421,8 @@ export default function KnowledgeBasePage() {
                             </CardContent>
                         </Card>
                     </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 lg:col-span-2">
                             <CardHeader>
                                 <CardTitle className="text-xl text-slate-900 dark:text-slate-100">Add Website URL</CardTitle>
                                 <CardDescription className="text-base text-slate-500 dark:text-slate-400">Crawl your website for information.</CardDescription>
@@ -426,7 +450,7 @@ export default function KnowledgeBasePage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 lg:col-span-2">
+                        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 lg:col-span-3">
                             <CardHeader>
                                 <CardTitle className="text-xl text-slate-900 dark:text-slate-100">Add Text Content</CardTitle>
                                 <CardDescription className="text-base text-slate-500 dark:text-slate-400">Directly add text information for training.</CardDescription>
@@ -465,115 +489,130 @@ export default function KnowledgeBasePage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-2">
-                                {knowledgeData?.data?.map((item: any, i: number) => {
-                                    let icon = <FileText className="w-5 h-5" />;
-                                    let style = "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300";
+                                {isKnowledgeLoading ? (
+                                    <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                                        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+                                        <p className="text-base font-medium text-slate-900 dark:text-slate-100">Loading sources...</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {knowledgeData?.data && knowledgeData.data.length > 0 ? (
+                                            knowledgeData.data.map((item: any, i: number) => {
+                                                let icon = <FileText className="w-5 h-5" />;
+                                                let style = "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300";
 
-                                    if (item.type === 'url') {
-                                        icon = <LinkIcon className="w-5 h-5" />;
-                                        style = "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400";
-                                    } else if (item.type === 'text') {
-                                        icon = <FileText className="w-5 h-5" />;
-                                        style = "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300";
-                                    } else if (item.type === 'pdf') {
-                                        icon = <File className="w-5 h-5" />;
-                                        style = "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400";
-                                    } else if (item.type === 'doc' || item.type === "docx") {
-                                        icon = <FileText className="w-5 h-5" />;
-                                        style = "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400";
-                                    }
+                                                if (item.type === 'url') {
+                                                    icon = <LinkIcon className="w-5 h-5" />;
+                                                    style = "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400";
+                                                } else if (item.type === 'text') {
+                                                    icon = <FileText className="w-5 h-5" />;
+                                                    style = "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300";
+                                                } else if (item.type === 'pdf') {
+                                                    icon = <File className="w-5 h-5" />;
+                                                    style = "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400";
+                                                } else if (item.type === 'doc' || item.type === "docx") {
+                                                    icon = <FileText className="w-5 h-5" />;
+                                                    style = "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400";
+                                                }
 
-                                    return (
-                                        <div key={i} className="flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm transition-all duration-200">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-11 h-11 rounded-lg flex items-center justify-center shadow-sm ${style}`}>
-                                                    {icon}
+                                                return (
+                                                    <div key={i} className="flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm transition-all duration-200">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className={`w-11 h-11 rounded-lg flex items-center justify-center shadow-sm ${style}`}>
+                                                                {icon}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-semibold text-base text-slate-900 dark:text-slate-100">
+                                                                    {formatDisplayKnowledge(item?.type, item)}
+                                                                </p>
+                                                                <p className="text-sm text-slate-500 dark:text-slate-400"> {formatDate(item?.created_at)}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="flex items-center gap-1.5 text-xs font-semibold text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-3 py-1.5 rounded-full border border-green-200 dark:border-green-800">
+                                                                    <CheckCircle className="w-3.5 h-3.5" /> Trained
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <DropdownMenu>
+                                                                    <DropdownMenuTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
+                                                                            <span className="sr-only">Open menu</span>
+                                                                            <MoreHorizontal className="w-4 h-4" />
+                                                                        </Button>
+                                                                    </DropdownMenuTrigger>
+                                                                    <DropdownMenuContent align="end">
+                                                                        {item?.type == "text" &&
+                                                                            <> <DropdownMenuItem onClick={() => handleView(item)}>
+                                                                                <Eye className="mr-2 h-4 w-4" />
+                                                                                View
+                                                                            </DropdownMenuItem>
+                                                                                <DropdownMenuItem onClick={() => handleEdit(item, "knowledge")}>
+                                                                                    <Pencil className="mr-2 h-4 w-4" />
+                                                                                    Edit
+                                                                                </DropdownMenuItem>
+                                                                                <DropdownMenuSeparator /></>}
+                                                                        {/* {(item?.type == "pdf" || item?.type == "doc") && item?.file_url && (<>
+                                                                            <DropdownMenuItem asChild>
+                                                                                <a href={item?.file_url} download={item?.file_name || "file"} >
+                                                                                    <DownloadIcon className="mr-2 h-4 w-4" />
+                                                                                    Download
+                                                                                </a>
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuSeparator />
+                                                                        </>
+                                                                        )} */}
+                                                                        {item?.type == "url" && <>
+                                                                            <DropdownMenuItem onClick={() => {
+                                                                                if (item?.source_url) {
+                                                                                    window.open(item?.source_url, "_blank", "noopener, noreferrer"
+                                                                                    )
+                                                                                }
+                                                                            }}>
+                                                                                <LinkIcon className="mr-2 h-4 w-4" />
+                                                                                Visit
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuSeparator /></>
+                                                                        }
+                                                                        <DropdownMenuItem
+                                                                            onClick={() => handleDeleteClick(item, "knowledge")}
+                                                                            className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                                                                        >
+                                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                                            Remove
+                                                                        </DropdownMenuItem>
+                                                                    </DropdownMenuContent>
+                                                                </DropdownMenu>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center py-12">
+                                                <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+                                                    <FileText className="w-8 h-8 text-slate-400 dark:text-slate-500" />
                                                 </div>
-                                                <div>
-                                                    <p className="font-semibold text-base text-slate-900 dark:text-slate-100">
-                                                        {formatDisplayKnowledge(item?.type, item)}
-                                                    </p>
-                                                    <p className="text-sm text-slate-500 dark:text-slate-400"> {formatDate(item?.created_at)}</p>
-                                                </div>
+                                                <p className="text-slate-500 dark:text-slate-400 text-center text-base font-medium">
+                                                    No active sources found
+                                                </p>
+                                                <p className="text-slate-400 dark:text-slate-500 text-center text-sm mt-2">
+                                                    Upload documents or add URLs to train your AI
+                                                </p>
                                             </div>
-                                            <div className="flex items-center gap-4">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="flex items-center gap-1.5 text-xs font-semibold text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-3 py-1.5 rounded-full border border-green-200 dark:border-green-800">
-                                                        <CheckCircle className="w-3.5 h-3.5" /> Trained
-                                                    </span>
-                                                    {/* <span className="flex items-center gap-1.5 text-xs font-medium text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">
-                                                        <Clock className="w-3.5 h-3.5" /> Processing
-                                                     </span> */}
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
-                                                                <span className="sr-only">Open menu</span>
-                                                                <MoreHorizontal className="w-4 h-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            {item?.type == "text" &&
-                                                                <> <DropdownMenuItem onClick={() => handleView(item)}>
-                                                                    <Eye className="mr-2 h-4 w-4" />
-                                                                    View
-                                                                </DropdownMenuItem>
-                                                                    <DropdownMenuItem onClick={() => handleEdit(item)}>
-                                                                        <Pencil className="mr-2 h-4 w-4" />
-                                                                        Edit
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuSeparator /></>}
-                                                            {(item?.type == "pdf" || item?.type == "doc") && item?.file_url && (<>
-                                                                <DropdownMenuItem asChild>
-                                                                    <a href={item?.file_url} download={item?.file_name || "file"} >
-                                                                        <DownloadIcon className="mr-2 h-4 w-4" />
-                                                                        Download
-                                                                    </a>
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuSeparator />
-                                                            </>
-                                                            )}
-                                                            {item?.type == "url" && <>
-                                                                <DropdownMenuItem onClick={() => {
-                                                                    if (item?.source_url) {
-                                                                        window.open(item?.source_url, "_blank", "noopener, noreferrer"
-                                                                        )
-                                                                    }
-                                                                }}>
-                                                                    <LinkIcon className="mr-2 h-4 w-4" />
-                                                                    Visit
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuSeparator /></>
-                                                            }
-                                                            <DropdownMenuItem
-                                                                onClick={() => handleDeleteClick(item)}
-                                                                className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
-                                                            >
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Remove
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="settings">
-                    <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-                        <CardContent className="p-8 text-center text-slate-500 dark:text-slate-400">
-                            Advanced configuration for chunking and vector database connections would go here.
-                        </CardContent>
-                    </Card>
+                <TabsContent value="Prompt_Configuration">
+                    <PromptConfiguration handleEdit={handleEdit} handleDeleteClick={handleDeleteClick}  />
                 </TabsContent>
             </Tabs>
-
 
             <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
                 <DialogContent className="max-w-2xl">
@@ -623,7 +662,7 @@ export default function KnowledgeBasePage() {
             < Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen} >
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Delete Knowledge Source?</DialogTitle>
+                        <DialogTitle>Delete {itemToDelete?.type == "knowledge" ? "Knowledge" : "Prompt"} Source?</DialogTitle>
                         <DialogDescription>
                             Are you sure you want to delete this item? This action cannot be undone.
                         </DialogDescription>
