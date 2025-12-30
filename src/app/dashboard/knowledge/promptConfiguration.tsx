@@ -20,6 +20,7 @@ import { extractTextFromFile } from "@/utils/ocr";
 
 interface PromptConfigurationProps {
     handleEdit: any;
+    handleUpdate: any;
     handleDeleteClick: any;
 }
 
@@ -32,12 +33,13 @@ interface PromptItem {
     createdAt: Date;
 }
 
-export default function PromptConfiguration({ handleEdit, handleDeleteClick }: PromptConfigurationProps) {
+export default function PromptConfiguration({ handleEdit, handleUpdate, handleDeleteClick }: PromptConfigurationProps) {
     const { enqueueSnackbar } = useSnackbar();
     const fileRef = useRef<HTMLInputElement>(null);
     const [aiName, setAiName] = useState("");
     const [inputType, setInputType] = useState<'text' | 'file'>('text');
     const [promptText, setPromptText] = useState("");
+    const [isUploading, setIsUploading] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [promptsList, setPromptsList] = useState<PromptItem[]>([]);
     const [isDragging, setIsDragging] = useState(false);
@@ -45,8 +47,8 @@ export default function PromptConfiguration({ handleEdit, handleDeleteClick }: P
     // Hooks
     const { data: promptsData, isLoading: isPromptsLoading, isError } = useGetPromptConfigurationQuery();
     const { mutate: createPromptMutate, isPending: isCreatePromptPending } = useCreatePromptMutation();
-    const { mutate: activatePromptMutate } = useActivatePromptMutation();
-    const { mutate: deletePromptMutate } = useDeletePromptMutation();
+    const { mutate: activatePromptMutate, isPending: isActivatePromptPending } = useActivatePromptMutation();
+    const { mutate: deletePromptMutate, isPending: isDeletePromptPending } = useDeletePromptMutation();
 
     const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
@@ -87,6 +89,7 @@ export default function PromptConfiguration({ handleEdit, handleDeleteClick }: P
             enqueueSnackbar("File size exceeds 5MB limit.", { variant: 'error' });
             return;
         }
+        setIsUploading(true);
         const text = await extractTextFromFile(file);
         const fileData = {
             name: file.name,
@@ -96,6 +99,7 @@ export default function PromptConfiguration({ handleEdit, handleDeleteClick }: P
             file: file
         }
         setSelectedFile(fileData as any);
+        setIsUploading(false);
     };
 
     const handleAddPrompt = () => {
@@ -147,18 +151,11 @@ export default function PromptConfiguration({ handleEdit, handleDeleteClick }: P
         }
     };
 
-    const handleDeletePrompt = (id: string) => {
-        deletePromptMutate(id);
-    };
-
     const handleToggleActive = (id: string, is_active_status: string) => {
-        console.log("is_active_status", is_active_status)
         const data = {
             is_active: is_active_status == "true" ? "false" : "true"
         }
-        console.log("data", data);
-        console.log("id", id)
-        activatePromptMutate(id, data as any);
+        activatePromptMutate({id, data});
     };
 
     const formatDate = (dateString: string) => {
@@ -349,7 +346,7 @@ export default function PromptConfiguration({ handleEdit, handleDeleteClick }: P
                                         <div className="flex items-center gap-6">
                                             <div className="flex items-center gap-2">
                                                 <Switch
-                                                    checked={Boolean(prompt.is_active)}
+                                                    checked={prompt.is_active == "true"}
                                                     onCheckedChange={() => handleToggleActive(prompt.id, prompt.is_active)}
                                                     id={`active-mode-${prompt.id}`}
                                                 />
@@ -366,7 +363,7 @@ export default function PromptConfiguration({ handleEdit, handleDeleteClick }: P
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => handleEdit(prompt)}>
+                                                    <DropdownMenuItem onClick={handleUpdate}>
                                                         <Pencil className="mr-2 h-4 w-4" />
                                                         Edit
                                                     </DropdownMenuItem>

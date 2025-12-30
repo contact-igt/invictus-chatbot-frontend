@@ -28,7 +28,7 @@ export const useActivatePromptMutation = () => {
     const { enqueueSnackbar } = useSnackbar();
 
     return useMutation({
-        mutationFn: (id: string, data: any) => {
+        mutationFn: ({id, data}: {id: string, data: any}) => {
             return PromptApis.activatePromptById(id, data);
         },
         onSuccess: () => {

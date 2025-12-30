@@ -90,29 +90,38 @@ export default function KnowledgeBasePage() {
     };
 
     const handleEdit = (item: any, type: string) => {
-        setSelectedItem({item, type});
+        setSelectedItem({ item, type });
         setViewMode('edit');
         setIsViewModalOpen(true);
     };
 
     const handleUpdate = () => {
         if (!selectedItem) return;
-        const payload: {
-            title: string;
-            text?: string;
-        } = {
-            title: "Ophthall conclave conference",
-            text: editContent
-        }
-        if(selectedItem?.type == "knowledge"){
-                    updateKnowledgeMutate({
-            id: selectedItem.item.id,
-            data: payload
-        });
-        }
-        else if(selectedItem?.type == "prompt"){
-            updatePromptMutute({
 
+        if (selectedItem?.type == "knowledge") {
+            const knowledgePayload: {
+                title: string;
+                text?: string;
+            } = {
+                title: "Ophthall conclave conference",
+                text: editContent
+            }
+            updateKnowledgeMutate({
+                id: selectedItem.item.id,
+                data: knowledgePayload
+            });
+        }
+        else if (selectedItem?.type == "prompt") {
+            const promptPayload: {
+                name: string;
+                prompt?: string;
+            } = {
+                name: "Ophthall conclave conference",
+                prompt: editContent
+            }
+            updatePromptMutute({
+                id: selectedItem.item.id,
+                data: promptPayload
             })
         }
         setIsViewModalOpen(false);
@@ -610,7 +619,7 @@ export default function KnowledgeBasePage() {
                 </TabsContent>
 
                 <TabsContent value="Prompt_Configuration">
-                    <PromptConfiguration handleEdit={handleEdit} handleDeleteClick={handleDeleteClick}  />
+                    <PromptConfiguration handleEdit={handleEdit} handleUpdate={handleUpdate} handleDeleteClick={handleDeleteClick} />
                 </TabsContent>
             </Tabs>
 
@@ -648,7 +657,7 @@ export default function KnowledgeBasePage() {
                         {viewMode === 'edit' ? (
                             <>
                                 <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>Cancel</Button>
-                                <Button onClick={handleUpdateKnowledge}>Save Changes</Button>
+                                <Button onClick={handleUpdate}>Save Changes</Button>
                             </>
                         ) : (
                             <Button onClick={() => setIsViewModalOpen(false)}>Close</Button>
