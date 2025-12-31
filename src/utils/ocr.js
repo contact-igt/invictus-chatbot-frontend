@@ -29,6 +29,7 @@ async function imageOCR(file) {
 
 async function pdfOCR(file) {
   const buffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
   const worker = await createWorker("eng");
   let fullText = "";
 
