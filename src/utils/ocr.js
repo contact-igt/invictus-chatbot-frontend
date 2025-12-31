@@ -47,9 +47,7 @@ async function pdfOCR(file) {
 
     await page.render({ canvasContext: ctx, viewport }).promise;
 
-    const blob = await new Promise(res =>
-      canvas.toBlob(res, "image/png")
-    );
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/png"));
 
     const { data } = await worker.recognize(blob);
     fullText += data.text + "\n";
