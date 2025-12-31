@@ -163,8 +163,8 @@ export default function KnowledgeBasePage() {
                 name: string;
                 prompt?: string;
             } = {
-                name: selectedItem.item.name,
-                prompt: editContent?.prompt
+                name: editContent?.name ? editContent?.name : selectedItem.item.name,
+                prompt: editContent?.prompt ? editContent?.prompt : selectedItem.item.prompt
             }
             updatePromptMutute({
                 id: selectedItem.item.id,
@@ -202,6 +202,8 @@ export default function KnowledgeBasePage() {
             "application/msword",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "text/plain",
+            // "application/vnd.ms-powerpoint",
+            // "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         ];
         setUploading(true);
         const validFiles: File[] = [];
@@ -340,6 +342,7 @@ export default function KnowledgeBasePage() {
             setEditContent({ name: data?.name, prompt: content });
         }
     }, [knowledgeDetailsById, promptDetailsById, viewMode]);
+    console.log(" promptDetailsById", promptDetailsById)
     console.log("viewMode", viewMode);
     console.log("selectedItem", selectedItem);
     return (
@@ -690,8 +693,9 @@ export default function KnowledgeBasePage() {
                     </DialogHeader>
 
                     <div className="py-4">
-                        {viewMode == "edit" && (isKnowledgeByIdLoading || isPromptByIdLoading) ? (
-                            <div className="text-center py-10 text-slate-500">
+                        {(viewMode == "edit" && (isKnowledgeByIdLoading || isPromptByIdLoading)) || (viewMode == "view" && (isKnowledgeByIdLoading || isPromptByIdLoading)) ? (
+                            <div className="text-center flex flex-col items-center justify-center py-10 text-slate-500">
+                                <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
                                 Loading content...
                             </div>
                         ) : viewMode == "view" && selectedItem?.mode == "knowledge" ? (
@@ -730,7 +734,7 @@ export default function KnowledgeBasePage() {
                                         id="ai-name"
                                         placeholder="e.g. Receptionist Bot"
                                         value={editContent?.name}
-                                        onChange={(e) => setEditContent({ name: e.target.value })}
+                                        onChange={(e) => setEditContent((prev)=>{ return { ...prev, name: e.target.value }})}
                                     />
                                 </div>}
                                 <div className={selectedItem?.mode == "prompt" ? "space-y-2 mt-6" : "space-y-2 mt-1"}>
@@ -739,10 +743,10 @@ export default function KnowledgeBasePage() {
                                         value={selectedItem?.mode == "prompt" ? editContent?.prompt : editContent?.text}
                                         onChange={(e) => {
                                             if (selectedItem?.mode == "knowledge") {
-                                                setEditContent({ text: e.target.value })
+                                                setEditContent((prev)=>{ return { ...prev, text: e.target.value }})
                                             }
                                             else {
-                                                setEditContent({ prompt: e.target.value })
+                                                setEditContent((prev)=>{ return { ...prev, prompt: e.target.value }})
                                             }
                                         }}
                                         className="min-h-[300px] font-mono text-sm"

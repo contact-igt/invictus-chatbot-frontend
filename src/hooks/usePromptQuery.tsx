@@ -80,7 +80,7 @@ export const useGetPromptConfigurationQuery = () => {
 
 export const usePromptByIdQuery = (id: string, type: string) => {
     const { data, isLoading, isError } = useQuery({
-        queryKey: ['prompt', id],
+        queryKey: ['prompt-configurations', id],
         queryFn: () => PromptApis.getPromptById(id),
         enabled: !!id && type == "prompt",
         staleTime: 3 * 60 * 1000,
