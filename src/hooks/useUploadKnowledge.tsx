@@ -60,11 +60,11 @@ export const useGetKnowledgesQuery = () => {
 };
 
 
-export const useKnowledgeByIdQuery = (id: string) => {
+export const useKnowledgeByIdQuery = (id: string, type: string) => {
     const { data, isLoading, isError } = useQuery({
         queryKey: ['knowledge', id],
         queryFn: () => KnowledgeApis.getKnowledgeById(id),
-        enabled: !!id,
+        enabled: !!id && type == "knowledge",
         staleTime: 3 * 60 * 1000,
     });
     return { data, isLoading, isError };

@@ -30,11 +30,10 @@ async function imageOCR(file) {
 async function pdfOCR(file) {
   const buffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-
   const worker = await createWorker("eng");
   let fullText = "";
 
-  const MAX_PAGES = 5;
+  const MAX_PAGES = pdf.numPages;
 
   for (let i = 1; i <= Math.min(pdf.numPages, MAX_PAGES); i++) {
     const page = await pdf.getPage(i);
@@ -48,9 +47,7 @@ async function pdfOCR(file) {
 
     await page.render({ canvasContext: ctx, viewport }).promise;
 
-    const blob = await new Promise(res =>
-      canvas.toBlob(res, "image/png")
-    );
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/png"));
 
     const { data } = await worker.recognize(blob);
     fullText += data.text + "\n";
