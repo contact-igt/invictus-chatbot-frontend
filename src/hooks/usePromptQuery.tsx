@@ -78,6 +78,16 @@ export const useGetPromptConfigurationQuery = () => {
     return { data, isLoading, isError };
 }
 
+export const usePromptByIdQuery = (id: string, type: string) => {
+    const { data, isLoading, isError } = useQuery({
+        queryKey: ['prompt', id],
+        queryFn: () => PromptApis.getPromptById(id),
+        enabled: !!id && type == "prompt",
+        staleTime: 3 * 60 * 1000,
+    });
+    return { data, isLoading, isError };
+}
+
 
 export const useUpdatePromptMutation = () => {
     const queryClient = useQueryClient();
@@ -86,8 +96,8 @@ export const useUpdatePromptMutation = () => {
     return useMutation({
         mutationFn: ({ id, data }: { id: string; data: any }) => {
             const formData = new FormData();
-            formData.append("title", data?.title);
-            formData.append("text", data?.text ?? null);
+            formData.append("name", data?.name);
+            formData.append("prompt", data?.prompt ?? null);
             return PromptApis.updatePromptById(id, formData as any);
         },
         onSuccess: () => {

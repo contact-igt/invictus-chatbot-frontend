@@ -20,6 +20,7 @@ import { extractTextFromFile } from "@/utils/ocr";
 
 interface PromptConfigurationProps {
     handleEdit: any;
+    handleView: any,
     handleUpdate: any;
     handleDeleteClick: any;
 }
@@ -33,7 +34,7 @@ interface PromptItem {
     createdAt: Date;
 }
 
-export default function PromptConfiguration({ handleEdit, handleUpdate, handleDeleteClick }: PromptConfigurationProps) {
+export default function PromptConfiguration({ handleView, handleEdit, handleUpdate, handleDeleteClick }: PromptConfigurationProps) {
     const { enqueueSnackbar } = useSnackbar();
     const fileRef = useRef<HTMLInputElement>(null);
     const [aiName, setAiName] = useState("");
@@ -104,12 +105,12 @@ export default function PromptConfiguration({ handleEdit, handleUpdate, handleDe
 
     const handleAddPrompt = () => {
         if (!aiName.trim()) {
-            enqueueSnackbar("Please enter an Name.", { variant: 'error' });
+            enqueueSnackbar("Please enter an name.", { variant: 'error' });
             return;
         }
 
         if (inputType === 'text' && !promptText.trim()) {
-            enqueueSnackbar("Please enter prompt text.", { variant: 'error' });
+            enqueueSnackbar("Please enter prompt instructions.", { variant: 'error' });
             return;
         }
         else if (inputType === 'file' && !selectedFile) {
@@ -119,7 +120,11 @@ export default function PromptConfiguration({ handleEdit, handleUpdate, handleDe
 
         if (inputType === "text") {
             if (!promptText.trim()) {
-                enqueueSnackbar("Please enter prompt text.", { variant: 'error' });
+                enqueueSnackbar("Please enter prompt instructions.", { variant: 'error' });
+                return;
+            }
+            if (promptText.trim().length < 10) {
+                enqueueSnackbar("Prompt instructions must be at least 10 characters long.", { variant: 'error' });
                 return;
             }
             createPromptMutate({
@@ -155,7 +160,7 @@ export default function PromptConfiguration({ handleEdit, handleUpdate, handleDe
         const data = {
             is_active: is_active_status == "true" ? "false" : "true"
         }
-        activatePromptMutate({id, data});
+        activatePromptMutate({ id, data });
     };
 
     const formatDate = (dateString: string) => {
@@ -169,7 +174,7 @@ export default function PromptConfiguration({ handleEdit, handleUpdate, handleDe
     };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 ">
             {/* Left Column - Configuration Form */}
             <div className="lg:col-span-2 space-y-6">
                 <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
@@ -251,32 +256,38 @@ export default function PromptConfiguration({ handleEdit, handleUpdate, handleDe
                                         onChange={handleFileSelect}
                                     />
 
-                                    {selectedFile ? (
-                                        <div className="flex flex-col items-center">
-                                            <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2">
-                                                <FileText className="w-6 h-6" />
+                                    {isUploading ?
+                                        <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                                            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+                                            <p className="text-base font-medium text-slate-900 dark:text-slate-100">Processing files...</p>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">This may take a moment</p>
+                                        </div> : selectedFile ? (
+                                            <div className="flex flex-col items-center">
+                                                <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2">
+                                                    <FileText className="w-6 h-6" />
+                                                </div>
+
+                                                <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate max-w-full px-2">
+                                                    {selectedFile.name}
+                                                </p>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                                    {(selectedFile.size / 1024).toFixed(1)} KB
+                                                </p>
+                                                <Button variant="ghost" size="sm" className="mt-2 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedFile(null);
+                                                    if (fileRef.current) fileRef.current.value = "";
+                                                }}>
+                                                    Remove
+                                                </Button>
                                             </div>
-                                            <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate max-w-full px-2">
-                                                {selectedFile.name}
-                                            </p>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                                {(selectedFile.size / 1024).toFixed(1)} KB
-                                            </p>
-                                            <Button variant="ghost" size="sm" className="mt-2 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedFile(null);
-                                                if (fileRef.current) fileRef.current.value = "";
-                                            }}>
-                                                Remove
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center text-slate-500 dark:text-slate-400">
-                                            <UploadCloud className="w-10 h-10 mb-2 opacity-50" />
-                                            <p className="text-sm font-medium">Click to upload or drag & drop</p>
-                                            <p className="text-xs mt-1 opacity-70">TXT, PDF, DOC (Max 5MB)</p>
-                                        </div>
-                                    )}
+                                        ) : (
+                                            <div className="flex flex-col items-center text-slate-500 dark:text-slate-400">
+                                                <UploadCloud className="w-10 h-10 mb-2 opacity-50" />
+                                                <p className="text-sm font-medium">Click to upload or drag & drop</p>
+                                                <p className="text-xs mt-1 opacity-70">TXT, PDF, DOC (Max 5MB)</p>
+                                            </div>
+                                        )}
                                 </div>
                             </div>
                         )}
@@ -338,7 +349,7 @@ export default function PromptConfiguration({ handleEdit, handleUpdate, handleDe
                                                     </span> */}
                                                 </div>
                                                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                     {formatDate(prompt.created_at)}
+                                                    {formatDate(prompt.created_at)}
                                                 </p>
                                             </div>
                                         </div>
@@ -351,7 +362,7 @@ export default function PromptConfiguration({ handleEdit, handleUpdate, handleDe
                                                     id={`active-mode-${prompt.id}`}
                                                 />
                                                 <Label htmlFor={`active-mode-${prompt.id}`} className="text-sm font-medium text-slate-600 dark:text-slate-300 cursor-pointer">
-                                                    {prompt.is_active =="true" ? "Active" : "Inactive"}
+                                                    {prompt.is_active == "true" ? "Active" : "Inactive"}
                                                 </Label>
                                             </div>
 
@@ -363,7 +374,11 @@ export default function PromptConfiguration({ handleEdit, handleUpdate, handleDe
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={handleUpdate}>
+                                                    <DropdownMenuItem onClick={() => handleView(prompt, "prompt")}>
+                                                        <Eye className="mr-2 h-4 w-4" />
+                                                        View
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleEdit(prompt, "prompt")}>
                                                         <Pencil className="mr-2 h-4 w-4" />
                                                         Edit
                                                     </DropdownMenuItem>

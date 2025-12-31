@@ -27,7 +27,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useGetKnowledgesQuery, useUploadKnowledgeMutation, useUpdateKnowledgeMutation, useDeleteKnowledgeById, useKnowledgeByIdQuery } from "@/hooks/useUploadKnowledge";
 import PromptConfiguration from "./promptConfiguration";
-import { useDeletePromptMutation } from "@/hooks/usePromptQuery";
+import { useDeletePromptMutation, usePromptByIdQuery, useUpdatePromptMutation } from "@/hooks/usePromptQuery";
+import { Label } from "@/components/ui/label";
 
 const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -61,63 +62,109 @@ const formatDisplayKnowledge = (type: string, data: any): string => {
 
 export default function KnowledgeBasePage() {
     const { enqueueSnackbar } = useSnackbar();
+    const [activeTab, setActiveTab] = useState("sources");
     const fileRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        const storedTab = localStorage.getItem("selectedTab");
+        if (storedTab) {
+            setActiveTab(storedTab);
+        }
+    }, []);
+
+    const handleTabChange = (value: string) => {
+        setActiveTab(value);
+        localStorage.setItem("selectedTab", value);
+    };
+
     const [uploading, setUploading] = useState(false);
     const { data: knowledgeData, isLoading: isKnowledgeLoading, isError } = useGetKnowledgesQuery();
     const [isDragging, setIsDragging] = useState(false);
     const { mutate: uploadKnowledgeMutate, isPending } = useUploadKnowledgeMutation();
     const [uploadedData, setUploadedData] = useState<Array<{ name: string, size: string, date: string, type: string, fileObj?: File, text: string }>>([]);
     const [websiteUrl, setWebsiteUrl] = useState("");
+    const [isUpdating, setIsUpdating] = useState<{ status: boolean, type: any }>({
+        status: false,
+        type: null
+    });
     const [textContent, setTextContent] = useState("");
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-    const [selectedItem, setSelectedItem] = useState<{ item: any, type?: string } | null>(null);
+    const [selectedItem, setSelectedItem] = useState<{ item: any, mode?: string } | null>(null);
     const [viewMode, setViewMode] = useState<'view' | 'edit'>('view');
-    const [editContent, setEditContent] = useState("");
-    const { data: knowledgeDetailsById, isLoading: isKnowledgeByIdLoading } = useKnowledgeByIdQuery(selectedItem?.item?.id);
+    const [editContent, setEditContent] = useState<{ name?: any, prompt?: any, text?: any }>({
+        name: "",
+        prompt: "",
+        text: ""
+    });
+    const { data: knowledgeDetailsById, isLoading: isKnowledgeByIdLoading } = useKnowledgeByIdQuery(selectedItem?.item?.id, selectedItem?.mode ?? "knowledge");
+    const { data: promptDetailsById, isLoading: isPromptByIdLoading } = usePromptByIdQuery(selectedItem?.item?.id, selectedItem?.mode ?? "prompt");
 
     const { mutate: updateKnowledgeMutate } = useUpdateKnowledgeMutation();
-    const { mutate: updatePromptMutute } = useUpdateKnowledgeMutation();
+    const { mutate: updatePromptMutute } = useUpdatePromptMutation();
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [itemToDelete, setItemToDelete] = useState<{ item: any, type: string } | null>(null);
 
     const { mutate: deleteKnowledgeMutate } = useDeleteKnowledgeById();
     const { mutate: deletePromptMutate } = useDeletePromptMutation();
+    const isView = viewMode === "view";
+    const isEdit = viewMode === "edit";
+    const isKnowledge = selectedItem?.mode === "knowledge";
+    const isPrompt = selectedItem?.mode === "prompt";
 
-    const handleView = (item: any) => {
-        setSelectedItem(item);
+    const dialogTitle = isKnowledge
+        ? isView
+            ? "View Knowledge"
+            : "Edit Knowledge"
+        : isPrompt
+            ? isView
+                ? "View Prompt"
+                : "Edit Prompt"
+            : "Edit Source";
+
+    const dialogDescription = isKnowledge
+        ? isView
+            ? "View the details of your knowledge source."
+            : "Make changes to your knowledge source."
+        : isPrompt
+            ? isView
+                ? "View the details of your prompt."
+                : "Make changes to your prompt source."
+            : "Edit source details.";
+    const handleView = (item: any, mode: string) => {
+        setSelectedItem({ item, mode });
         setViewMode('view');
         setIsViewModalOpen(true);
     };
 
-    const handleEdit = (item: any, type: string) => {
-        setSelectedItem({ item, type });
+    const handleEdit = (item: any, mode: string) => {
+        setSelectedItem({ item, mode });
         setViewMode('edit');
         setIsViewModalOpen(true);
     };
 
+    console.log("selectedItem", selectedItem?.mode)
     const handleUpdate = () => {
         if (!selectedItem) return;
-
-        if (selectedItem?.type == "knowledge") {
+        if (selectedItem?.mode == "knowledge") {
             const knowledgePayload: {
                 title: string;
                 text?: string;
             } = {
                 title: "Ophthall conclave conference",
-                text: editContent
+                text: editContent?.text
             }
             updateKnowledgeMutate({
                 id: selectedItem.item.id,
                 data: knowledgePayload
             });
         }
-        else if (selectedItem?.type == "prompt") {
+        else if (selectedItem?.mode == "prompt") {
             const promptPayload: {
                 name: string;
                 prompt?: string;
             } = {
-                name: "Ophthall conclave conference",
-                prompt: editContent
+                name: selectedItem.item.name,
+                prompt: editContent?.prompt
             }
             updatePromptMutute({
                 id: selectedItem.item.id,
@@ -145,6 +192,7 @@ export default function KnowledgeBasePage() {
             setItemToDelete(null);
         }
     };
+
     const processFiles = async (files: FileList | null) => {
         const MAX_FILE_SIZE_MB = 5;
         const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -176,7 +224,6 @@ export default function KnowledgeBasePage() {
         // Add files to uploaded files list
         const newFiles = await Promise.all(validFiles.map(async (file) => {
             const text = await extractTextFromFile(file);
-            console.log("text", text)
             return {
                 name: file?.name,
                 size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
@@ -219,21 +266,18 @@ export default function KnowledgeBasePage() {
         const title = "Ophthall conclave conference";
         console.log("uploadedData", uploadedData)
         if (type === 'file') {
+            setIsUpdating({ status: true, type: "file" })
             if (uploadedData.length === 0) {
                 return;
             }
             uploadKnowledgeMutate({
                 title: title,
-                file_name: title
-                // file_name: uploadedData ? uploadedData[0]?.name?.replace(/\.[^/.]+$/, "")
-                // ?.replace(/\s*\(\d+\)$/, "")
-                ,
-                // type: uploadedData[0]?.type,
+                file_name: uploadedData ? uploadedData[0]?.name?.replace(/\.[^/.]+$/, "")
+                    ?.replace(/\s*\(\d+\)$/, "") : "",
                 type: "file",
                 text: uploadedData[0]?.text,
                 source_url: '',
                 file: ""
-                // file: uploadedData[0]?.fileObj
             }, {
                 onSuccess: () => {
                     setUploadedData([]);
@@ -241,6 +285,7 @@ export default function KnowledgeBasePage() {
             });
 
         } else if (type === 'text') {
+            setIsUpdating({ status: true, type: "text" })
             if (!textContent.trim()) {
                 return;
             }
@@ -251,9 +296,14 @@ export default function KnowledgeBasePage() {
                 text: textContent.trim(),
                 source_url: '',
                 file: ''
-            });
-            setTextContent('');
+            },
+                {
+                    onSuccess: () => {
+                        setTextContent('');
+                    }
+                });
         } else if (type === 'url') {
+            setIsUpdating({ status: true, type: "url" })
             if (!websiteUrl.trim()) {
                 return;
             }
@@ -279,13 +329,19 @@ export default function KnowledgeBasePage() {
     };
 
     useEffect(() => {
-        if (viewMode === "edit" && knowledgeDetailsById) {
+        if (viewMode === "edit" && knowledgeDetailsById && selectedItem?.mode == "knowledge") {
             const data = knowledgeDetailsById.data || knowledgeDetailsById;
             const content = data?.raw_text;
-            setEditContent(content);
+            setEditContent({ text: content });
         }
-    }, [knowledgeDetailsById, viewMode]);
-    console.log("editContent", editContent);
+        else if (viewMode === "edit" && promptDetailsById && selectedItem?.mode == "prompt") {
+            const data = promptDetailsById.data || promptDetailsById;
+            const content = data?.prompt;
+            setEditContent({ name: data?.name, prompt: content });
+        }
+    }, [knowledgeDetailsById, promptDetailsById, viewMode]);
+    console.log("viewMode", viewMode);
+    console.log("selectedItem", selectedItem);
     return (
         <div className="space-y-8">
             <div>
@@ -293,7 +349,7 @@ export default function KnowledgeBasePage() {
                 <p className="text-base text-slate-500 dark:text-slate-400 mt-1">Train your AI assistant with your hospital's documents and website data.</p>
             </div>
 
-            <Tabs defaultValue="sources" className="w-full">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full space-y-8">
                 <TabsList className="grid w-full grid-cols-2 max-w-[400px] bg-slate-100 dark:bg-slate-800">
                     <TabsTrigger value="sources">Data Sources</TabsTrigger>
                     <TabsTrigger value="Prompt_Configuration">Prompts Configuration</TabsTrigger>
@@ -341,7 +397,6 @@ export default function KnowledgeBasePage() {
                                             ref={fileRef}
                                             id="file-upload"
                                             type="file"
-                                            multiple
                                             accept=".pdf,.doc,.docx,.txt"
                                             onChange={handleUploadFile}
                                             className="hidden"
@@ -351,7 +406,7 @@ export default function KnowledgeBasePage() {
                                             variant="default"
                                             size="lg"
                                             onClick={() => fileRef.current?.click()}
-                                            disabled={uploading || isPending}
+                                            disabled={uploading || isPending || uploadedData?.length == 1}
                                         >
                                             <UploadCloud className="w-4 h-4 mr-2" />
                                             <span className="text-base">Click here to select files</span>
@@ -379,7 +434,7 @@ export default function KnowledgeBasePage() {
                                             <p className="text-base font-medium text-slate-900 dark:text-slate-100">Processing files...</p>
                                             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">This may take a moment</p>
                                         </div>
-                                    ) : uploadedData.length === 0 ? (
+                                    ) : uploadedData?.length === 0 ? (
                                         <div className="text-center py-12 text-slate-400">
                                             <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
                                             <p className="text-base">No files uploaded yet</p>
@@ -387,7 +442,7 @@ export default function KnowledgeBasePage() {
                                         </div>
                                     ) : (
                                         <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                                            {uploadedData.map((file, index) => (
+                                            {uploadedData?.map((file, index) => (
                                                 <div key={index} className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
                                                     <div className="flex items-center gap-3 flex-1 min-w-0">
                                                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${file.type === 'pdf' ? 'bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400' :
@@ -424,7 +479,7 @@ export default function KnowledgeBasePage() {
                                         }}
                                         disabled={uploadedData.length === 0 || isPending}
                                     >
-                                        {isPending ? "Uploading..." : "Upload Document"}
+                                        {isPending && isUpdating.status == true && isUpdating.type == "file" ? "Uploading..." : "Upload Document"}
                                     </Button>
                                 </div>
                             </CardContent>
@@ -451,7 +506,9 @@ export default function KnowledgeBasePage() {
                                         if (websiteUrl.trim()) {
                                             handleUploadKnowledge('url');
                                         }
-                                    }} disabled={!websiteUrl.trim()}>Add</Button>
+                                    }} disabled={!websiteUrl.trim() || isPending || uploading}>{isPending && isUpdating.status == true && isUpdating.type == "url" ? <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                                        <div className="w-5 h-5 border-4 border-white border-t-transparent rounded-full animate-spin mb-0" />
+                                    </div> : "Add"}</Button>
                                 </div>
                                 <p className="text-xs text-slate-400 mt-2">
                                     The AI will automatically re-crawl this link every 24 hours.
@@ -481,9 +538,11 @@ export default function KnowledgeBasePage() {
 
                                             }
                                         }}
-                                        disabled={!textContent.trim()}
+                                        disabled={!textContent.trim() || isPending || uploading}
                                     >
-                                        Add Content
+                                        {isPending && isUpdating.status == true && isUpdating.type == "text" ? <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                                            <div className="w-5 h-5 border-4 border-white border-t-transparent rounded-full animate-spin" />
+                                        </div> : "Add Content"}
                                     </Button>
                                 </div>
                             </CardContent>
@@ -553,7 +612,7 @@ export default function KnowledgeBasePage() {
                                                                     </DropdownMenuTrigger>
                                                                     <DropdownMenuContent align="end">
                                                                         {item?.type == "text" &&
-                                                                            <> <DropdownMenuItem onClick={() => handleView(item)}>
+                                                                            <> <DropdownMenuItem onClick={() => handleView(item, "knowledge")}>
                                                                                 <Eye className="mr-2 h-4 w-4" />
                                                                                 View
                                                                             </DropdownMenuItem>
@@ -619,38 +678,80 @@ export default function KnowledgeBasePage() {
                 </TabsContent>
 
                 <TabsContent value="Prompt_Configuration">
-                    <PromptConfiguration handleEdit={handleEdit} handleUpdate={handleUpdate} handleDeleteClick={handleDeleteClick} />
+                    <PromptConfiguration handleView={handleView} handleEdit={handleEdit} handleUpdate={handleUpdate} handleDeleteClick={handleDeleteClick} />
                 </TabsContent>
             </Tabs>
 
             <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                        <DialogTitle>{viewMode === 'view' ? 'View Knowledge' : 'Edit Knowledge'}</DialogTitle>
-                        <DialogDescription>
-                            {viewMode === 'view' ? 'View the details of your knowledge source.' : 'Make changes to your knowledge source.'}
-                        </DialogDescription>
+                        <DialogTitle>{dialogTitle}</DialogTitle>
+                        <DialogDescription>{dialogDescription}</DialogDescription>
                     </DialogHeader>
 
                     <div className="py-4">
-                        {viewMode === "edit" && isKnowledgeByIdLoading ? (
+                        {viewMode == "edit" && (isKnowledgeByIdLoading || isPromptByIdLoading) ? (
                             <div className="text-center py-10 text-slate-500">
                                 Loading content...
                             </div>
-                        ) : viewMode === "view" ? (
-                            <div className="p-4 bg-slate-50 rounded-md whitespace-pre-wrap max-h-[400px] overflow-y-auto text-sm border">
-                                {(() => {
-                                    const data = knowledgeDetailsById?.data || knowledgeDetailsById;
-                                    return data?.raw_text || ""
-                                })()}
-                            </div>
-                        ) : (
-                            <Textarea
-                                value={editContent}
-                                onChange={(e) => setEditContent(e.target.value)}
-                                className="min-h-[300px] font-mono text-sm"
-                            />
-                        )}
+                        ) : viewMode == "view" && selectedItem?.mode == "knowledge" ? (
+                            <>
+                                <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-md whitespace-pre-wrap max-h-[400px] overflow-y-auto text-sm border">
+                                    {(() => {
+                                        const data = knowledgeDetailsById?.data || knowledgeDetailsById;
+                                        return data?.raw_text || ""
+                                    })()}
+                                </div>
+                            </>
+                        ) : viewMode == "view" && selectedItem?.mode == "prompt" ? (
+                            <>
+                                <Label htmlFor="ai-name">Name</Label>
+                                <div className="p-4 bg-slate-50 mt-2 dark:bg-slate-800 rounded-md whitespace-pre-wrap max-h-[400px] overflow-y-auto text-sm border">
+                                    {(() => {
+                                        const data = promptDetailsById?.data || promptDetailsById;
+                                        return data?.name || ""
+                                    })()}
+                                </div>
+                                <div className="mt-5">
+                                    <Label htmlFor="ai-name">Prompt</Label>
+                                    <div className="p-4 bg-slate-50 mt-2 dark:bg-slate-800 rounded-md whitespace-pre-wrap max-h-[400px] overflow-y-auto text-sm border">
+                                        {(() => {
+                                            const data = promptDetailsById?.data || promptDetailsById;
+                                            return data?.prompt || ""
+                                        })()}
+                                    </div>
+                                </div>
+                            </>
+                        ) : viewMode == "edit" ? (
+                            <>
+                                {selectedItem?.mode == "prompt" && <div className="space-y-2">
+                                    <Label htmlFor="ai-name">Name</Label>
+                                    <Input
+                                        id="ai-name"
+                                        placeholder="e.g. Receptionist Bot"
+                                        value={editContent?.name}
+                                        onChange={(e) => setEditContent({ name: e.target.value })}
+                                    />
+                                </div>}
+                                <div className={selectedItem?.mode == "prompt" ? "space-y-2 mt-6" : "space-y-2 mt-1"}>
+                                    {selectedItem?.mode == "prompt" && <Label htmlFor="prompt">Prompt</Label>}
+                                    <Textarea
+                                        value={selectedItem?.mode == "prompt" ? editContent?.prompt : editContent?.text}
+                                        onChange={(e) => {
+                                            if (selectedItem?.mode == "knowledge") {
+                                                setEditContent({ text: e.target.value })
+                                            }
+                                            else {
+                                                setEditContent({ prompt: e.target.value })
+                                            }
+                                        }}
+                                        className="min-h-[300px] font-mono text-sm"
+                                    />
+                                </div>
+                            </>
+                        ) : <p className="text-slate-500 dark:text-slate-400 text-center text-base font-medium">
+                            No active sources found
+                        </p>}
                     </div>
 
                     <DialogFooter>

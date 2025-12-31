@@ -273,7 +273,7 @@ export default function MessagesPage() {
                                 key={index}
                                 onClick={() => handleSelectChat(chat)}
                                 className={`p-4 border-b border-slate-100 cursor-pointer transition-all duration-200 ${selectedChat?.phone === chat.phone
-                                    ? 'bg-blue-50 border-l-4 border-l-blue-500'
+                                    ? 'bg-slate-100 border-l-4 border-l-blue-500'
                                     : 'hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm border-l-4 border-l-transparent'
                                     }`}
                             >
@@ -317,7 +317,7 @@ export default function MessagesPage() {
                                                             />
                                                         </svg>
                                                     )}
-                                                <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{chat?.message?.length > 40
+                                                <p className="text-sm text-slate-500 dark:text-slate-900 truncate">{chat?.message?.length > 40
                                                     ? chat?.message.slice(0, 40) + "..."
                                                     : chat?.message}</p>
                                             </div>
@@ -395,7 +395,7 @@ export default function MessagesPage() {
                         </Button>
                     </div>
                 </div>
-                <div className="flex-1 p-6 space-y-4 overflow-y-auto bg-[url('/assets/messageBg.png')] dark:bg-[url('/assets/darkbg.png')] bg-[100% 50%] bg-repeat bg-[length:250px_300px]">
+                <div className="flex-1 p-6 space-y-4 overflow-y-auto bg-[url('/assets/messageBg.png')] dark:bg-[url('/assets/darkbg.png')] bg-[100% 50%] bg-repeat bg-[length:230px_380px]">
                     {isMessagesLoading ? (
                         <div className="flex flex-col items-center justify-center h-full">
                             <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
